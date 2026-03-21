@@ -1,0 +1,32 @@
+
+# Node modules — never commit
+node_modules/
+
+# Environment files
+.env
+.env.*
+
+# Local dev logs
+*.log
+npm-debug.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor settings
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.cache
+
+# Export server heatmap PNGs (local only)
+export/*.png
+
+# Dev-only scratch files
+fetch_matrices.mjs
+
+# NOTE: dist/bundle.js and css/tailwind.output.css MUST be committed for GitHub Pages
+# Do NOT add them here.
