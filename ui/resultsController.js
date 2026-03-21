@@ -1,11 +1,16 @@
 /**
  * @file ui/resultsController.js
+ * @description Pushes computed alignment strings, metric calculations, and generated HTML elements to the DOM output containers.
+ * @pipelineLocation Frontend output phase. The absolute final stage of the application workflow.
+ * @changeImpact Altering DOM innerHTML or textContent bindings here will break the display layers, preventing users from seeing their results.
+ */
+
+/**
+ * @file ui/resultsController.js
  * @description Controller responsible for hydrating the results section DOM and managing success states.
  * @pipeline Triggers heavily after alignmentEngine.js returns a successful Promise. Replaces placeholder text with stats, binds visualization renderers, and handles empty-case fallback components.
  */
-import { renderSequenceMap } from '../visualization/alignmentViewer.js?v=27';
-import { renderGraphicSummary } from '../visualization/conservationRenderer.js?v=27';
-import { renderDPTable, renderHeatmap, setupMatrixUI } from '../visualization/heatmapRenderer.js?v=27';
+// Dynamic imports only
 
 export function updateResultUI(res) {
     const resultsPanel = document.getElementById('resultsSection');
@@ -74,23 +79,32 @@ export function updateResultUI(res) {
     }
 
 
-    renderSequenceMap(res);
-    renderGraphicSummary('graphicSummaryContainer', res);
+    // PHASE 2: Code Splitting (Dynamic Import Visualization Layer)
+    Promise.all([
+        import('../visualization/alignmentViewer.js'),
+        import('../visualization/conservationRenderer.js'),
+        import('../visualization/heatmapRenderer.js')
+    ]).then(([viewerModule, conservationModule, heatmapModule]) => {
+        viewerModule.renderSequenceMap(res);
+        conservationModule.renderGraphicSummary('graphicSummaryContainer', res);
 
-    el('chartContainer')?.classList.remove('hidden');
+        el('chartContainer')?.classList.remove('hidden');
 
-    if (res.additional_metrics?.H) {
-        renderDPTable(res);
-    } else {
-        const dpCon = el('dpTableContainer');
-        if (dpCon) dpCon.innerHTML =
-            `<div class="p-6 text-center text-muted font-sans text-sm">
-               <i class="fa-solid fa-table text-2xl mb-2 block"></i>
-               Sequences too large for table view (${res.additional_metrics?.n ?? '?'}×${res.additional_metrics?.m ?? '?'}).<br>
-               Switch to <b>Heatmap</b> for visualisation.
-             </div>`;
-    }
-    renderHeatmap(res);
+        if (res.additional_metrics?.H) {
+            heatmapModule.renderDPTable(res);
+        } else {
+            const dpCon = el('dpTableContainer');
+            if (dpCon) dpCon.innerHTML =
+                `<div class="p-6 text-center text-muted font-sans text-sm">
+                   <i class="fa-solid fa-table text-2xl mb-2 block"></i>
+                   Sequences too large for table view (${res.additional_metrics?.n ?? '?'}×${res.additional_metrics?.m ?? '?'}).<br>
+                   Switch to <b>Heatmap</b> for native Canvas representation.
+                 </div>`;
+        }
+        heatmapModule.renderHeatmap(res);
+    }).catch(err => {
+        console.error("Failed to lazy load visualization chunks:", err);
+    });
 
     resultsPanel.scrollIntoView({ behavior: 'smooth' });
 }

@@ -1,4 +1,11 @@
 /**
+ * @file js/main.js
+ * @description The primary Single Page Application (SPA) entry point. Bootstraps controllers, binds DOM events, and manages application state.
+ * @pipelineLocation Top-level controller. Directly interfaces with the user's browser interactions.
+ * @changeImpact Altering event listeners or initialization logic here will sever the connection between the UI buttons and the underlying alignment engine.
+ */
+
+/**
  * ================================================================
  * @file main.js
  * @location Root Controller Layer
@@ -94,35 +101,47 @@ document.addEventListener('DOMContentLoaded', () => {
     window._downloadAlignmentCSV = () => { if (window.lastAlignmentResult) downloadAlignmentCSV(window.lastAlignmentResult); };
     window._downloadAlignmentJSON = () => { if (window.lastAlignmentResult) downloadAlignmentJSON(window.lastAlignmentResult); };
     window._downloadAlignmentFASTA = () => { if (window.lastAlignmentResult) downloadAlignmentFASTA(window.lastAlignmentResult); };
-    window._downloadPlot = async () => {
-        const el = document.getElementById('plotlyMatrix');
-        if (el && window.Plotly && el.data) {
+    window.runBenchmarkSuite = async () => {
+        const { runBenchmarkSuite } = await import('../ui/validate.js?v=28');
+        runBenchmarkSuite();
+    };
+    window._downloadPlot = () => {
+        const canvas = document.getElementById('pureCanvasHeatmap');
+        if (canvas) {
             try {
-                const url = await Plotly.toImage(el, { format: 'png', height: 1200, width: 1600 });
-                const response = await fetch('http://localhost:3001/export-heatmap', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageBase64: url })
-                });
-                if (response.ok) {
-                    showToast('High-Res Heatmap saved to export/ folder via Server! (Research Grade)', 'success');
-                } else {
-                    throw new Error('Server unavailable');
-                }
+                const url = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = url;
+                const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 8);
+                a.download = `bioalign_heatmap_${timestamp}.png`;
+                a.click();
+                showToast('Heatmap snapshot downloaded successfully.', 'success');
             } catch (err) {
-                console.warn('[Export] Local server export failed, falling back to browser download.', err);
-                Plotly.downloadImage(el, { format: 'png', height: 800, width: 1200, filename: 'alignment_heatmap' });
-                showToast('Heatmap downloaded via browser (Server may be offline)', 'success');
+                console.error("Canvas export failed:", err);
+                showToast('Failed to export Heatmap. Cross-origin taint?', 'error');
             }
         } else {
-            showToast('No heatmap available to export.', 'error');
+            showToast('No heatmap available to export. Ensure alignment has completed.', 'error');
         }
     };
 
     // Setup listeners that might not be inline
     setupMatrixUI();
-
     setSequenceType('protein'); // default
+
+    // PHASE 3: SPA Hash Router
+    function handleRoute() {
+        const hash = window.location.hash || '#/home';
+        const route = hash.replace('#/', '');
+
+        if (route === 'home' || !route) {
+            returnToLanding();
+        } else if (['global', 'local', 'blast'].includes(route)) {
+            startAlignmentMode(route);
+        }
+    }
+    window.addEventListener('hashchange', handleRoute);
+    handleRoute(); // Process route natively on load
 
     const _alignmentCache = new Map();
     const MAX_SEQ_LENGTH = 50000;
@@ -235,6 +254,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.innerHTML = ogHTML;
                 }
             }
+        });
+    }
+});
+
+/**
+ * Phase 0: Sample Sequence Injection
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    const btnProtein = document.getElementById('loadProteinSampleBtn');
+    if (btnProtein) {
+        btnProtein.addEventListener('click', () => {
+            document.getElementById('seqType').value = 'protein';
+            document.getElementById('seq1').value = ">Hemoglobin_Alpha_Human\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR";
+            document.getElementById('seq2').value = ">Hemoglobin_Beta_Human\nVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH";
+        });
+    }
+
+    const btnDna = document.getElementById('loadDnaSampleBtn');
+    if (btnDna) {
+        btnDna.addEventListener('click', () => {
+            document.getElementById('seqType').value = 'dna';
+            document.getElementById('seq1').value = ">Ecoli_16S_rRNA_Fragment\nTGCCTAACACATGCAAGTCGAACGGTAACAGGAAGCAGCTTGCTGCTTTGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAACTGCCTGATGGAGGGGGATAACTACTGGAAACGGTAGCTAATACCGCATAACGTCGCAAGACCAAAGAGGGGGACCTTCGGGCCTCTTGCCATCGGATGTGCCCAGATGGGATTAGCTAGTAGGTGGGGTAACGGCTCACCTAGGCGACGATCCCTAGCTGGTCTGAGAGGATGACCAGCCACACTGGAACTGAG";
+            document.getElementById('seq2').value = ">Salmonella_16S_rRNA_Fragment\nTGCCTAACACATGCAAGTCGAACGGTAACAGGAAGCAGCTTGCTGCTTCGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAACTGCCTGATGGAGGGGGATAACTACTGGAAACGGTAGCTAATACCGCATAACGTCGCAAGACCAAAGAGGGGGACCTTCGGGCCTCTTGCCATCGGATGTGCCCAGATGGGATTAGCTTGTTGGTGAGGTAACGGCTCACCAAGGCGACGATCCCTAGCTGGTCTGAGAGGATGACCAGCCACACTGGAACTGAG";
         });
     }
 });

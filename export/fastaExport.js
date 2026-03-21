@@ -1,3 +1,10 @@
+/**
+ * @file export/fastaExport.js
+ * @description Converts raw sequence strings into standard bioinformatics FASTA formatting.
+ * @pipelineLocation Post-processing phase. Called when the user clicks "Download FASTA".
+ * @changeImpact Modifying the line-wrap logic (typically 80 characters) will violate FASTA syntactical standards.
+ */
+
 export function downloadAlignmentFASTA(res) {
     const s1Name = window.currentS1Name || 'Sequence_1';
     const s2Name = window.currentS2Name || 'Sequence_2';

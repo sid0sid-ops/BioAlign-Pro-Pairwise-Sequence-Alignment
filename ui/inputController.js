@@ -1,5 +1,12 @@
 /**
  * @file ui/inputController.js
+ * @description Reads, structures, and sanitizes sequences and parameters from the DOM text areas prior to passing them to the engine.
+ * @pipelineLocation Frontend interactive phase. The first point of contact with user-supplied data.
+ * @changeImpact Modifying DOM selector IDs or value retrieval here will cause the engine to receive null data and crash when the 'Align' button is clicked.
+ */
+
+/**
+ * @file ui/inputController.js
  * @description User interaction logic, managing sliders, parameters, textareas, and API drops.
  * @pipeline Handles all non-computation DOM events up until the user hits the Compute button. Manages DNA vs Protein states, fetches NCBI sequences asynchronously via eutils, and toggles parameters.
  */

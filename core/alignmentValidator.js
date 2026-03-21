@@ -1,5 +1,12 @@
 /**
  * @file core/alignmentValidator.js
+ * @description Performs strict pre-validation of sequences (DNA/Protein alphabets) and configuration parameters before processing.
+ * @pipelineLocation Early-pipeline. Acts as a gatekeeper immediately after UI input but before any heavy computation begins.
+ * @changeImpact Weakening the regex or validations here can allow corrupt characters into the DP matrix, causing runtime exceptions during traceback or matrix indexing.
+ */
+
+/**
+ * @file core/alignmentValidator.js
  * @description Verification layer for alignment integrity.
  */
 import { getMatrixScore } from './scoringMatrix.js?v=27';

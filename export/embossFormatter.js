@@ -1,4 +1,11 @@
 /**
+ * @file export/embossFormatter.js
+ * @description Formats raw alignment score and sequence strings into the standard EMBOSS Needle/Water text file output.
+ * @pipelineLocation Post-processing phase. Takes final computed data and prepares it for user download.
+ * @changeImpact Changing the column widths or header layouts here will cause incompatibility with external parsers expecting strict EMBOSS formatting.
+ */
+
+/**
  * @file ui/exportController.js
  * @description Logic for downloading alignment results in TXT, CSV, and JSON formats.
  */

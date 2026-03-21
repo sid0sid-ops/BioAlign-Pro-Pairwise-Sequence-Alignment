@@ -1,5 +1,12 @@
 /**
  * @file metrics/karlinParams.js
+ * @description Stores pre-computed statistical parameters (Lambda, K, H) for specific scoring matrices required to calculate BLAST statistics.
+ * @pipelineLocation Static statistics lookup. Loaded by blastStatistics.js.
+ * @changeImpact Changing these precision constants will decouple the statistics from the empirical models, making E-values mathematically nonsensical.
+ */
+
+/**
+ * @file metrics/karlinParams.js
  * @description Pre-computed Karlin-Altschul parameters for standard scoring matrices.
  * Source: NCBI BLAST documentation and NCBI Toolkit.
  */

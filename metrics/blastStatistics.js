@@ -1,5 +1,12 @@
 /**
  * @file metrics/blastStatistics.js
+ * @description Computes E-values, Bit-scores, and P-values using Karlin-Altschul statistics to determine the probabilistic significance of an alignment.
+ * @pipelineLocation Post-computation statistics phase. Runs independently after raw scores are generated.
+ * @changeImpact Changing the logarithmic or exponential constants here will completely invalidate the E-value significance reports, misleading researchers.
+ */
+
+/**
+ * @file metrics/blastStatistics.js
  * @description Implementation of Karlin-Altschul statistics for calculating Bit Scores and E-values.
  * @pipeline Engaged after an alignment succeeds. Assesses the raw Smith-Waterman score against lambda and K parameters derived from standard combinations of gap penalties and scoring matrices.
  */
@@ -49,7 +56,7 @@ const KA_PARAMS_TABLE = {
             { open: 5, extend: 1, lambda: 1.370, K: 0.711, H: 1.310 },
         ]
     },
-    'DNAFULL': null
+    'DNAFULL': { default: { lambda: 1.370, K: 0.711, H: 1.31 } }
 };
 
 export function getKAParams(matrixName, gapOpen, gapExtend) {

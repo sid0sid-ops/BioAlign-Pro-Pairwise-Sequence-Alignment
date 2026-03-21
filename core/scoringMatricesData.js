@@ -1,3 +1,10 @@
+/**
+ * @file core/scoringMatricesData.js
+ * @description Contains the raw substitution matrix lookups (e.g., BLOSUM62, PAM250, EDNAFULL).
+ * @pipelineLocation Static static lookup. Loaded into scoringMatrix.js to provide empirical mutation probabilities.
+ * @changeImpact Altering the scalar values of these matrices will corrupt evolutionary accuracy and make the application's scores deviate from standard NCBI/EMBOSS benchmarks.
+ */
+
 export const parsedMatrices = {
   "IDENTITY": { },
   "BLASTN": {

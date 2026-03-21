@@ -1,3 +1,10 @@
+/**
+ * @file export/server.js
+ * @description Local server entry point (if used in Node environments) for serving the application or potentially handling large file exports.
+ * @pipelineLocation Development infrastructure. Not used by the core client-side Single Page Application.
+ * @changeImpact Changing port binding or middleware here can prevent local execution or cause CORS blockages during offline development.
+ */
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');

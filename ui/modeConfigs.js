@@ -1,5 +1,12 @@
 /**
  * @file ui/modeConfigs.js
+ * @description Contains predefined UI presets (e.g. DNA vs Protein defaults, standard gap open/extend values) that populate form fields on mode switch.
+ * @pipelineLocation Frontend state phase. Handles UX/UI ease-of-use functionalities.
+ * @changeImpact Changing values here alters what a user sees by default, potentially steering them toward using sub-optimal penalty matrices.
+ */
+
+/**
+ * @file ui/modeConfigs.js
  * @description Strict parameter standardization and mode-checking lookup logic.
  * @pipeline Assesses input conditions (DNA/Protein, Affine/Linear, Local/Global) and strictly standardizes the string format (e.g., protein_needle, dna_blast) used for scientific statistics output mapping.
  */

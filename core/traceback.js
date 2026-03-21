@@ -1,4 +1,11 @@
 /**
+ * @file core/traceback.js
+ * @description Navigates completed DP matrix scoring trails (from bottom-right to top-left) to reconstruct the optimal string alignment.
+ * @pipelineLocation Post-computation tier. Runs immediately after the DP matrix is filled to generate human-readable strings.
+ * @changeImpact Modifying the directional prioritization (e.g. preferring diagonal over horizontal on ties) will alter the alignment aesthetic and might break edge-case alignments.
+ */
+
+/**
  * @file traceback.js
  * @description Reconstructs the optimal aligned sequence strings by walking backward
  *   through the TB (traceback) matrix produced by core/dpMatrix.js.

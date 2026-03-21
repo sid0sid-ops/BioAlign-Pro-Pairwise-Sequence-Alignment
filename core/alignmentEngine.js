@@ -1,5 +1,12 @@
 /**
  * @file core/alignmentEngine.js
+ * @description Orchestrates the sequence analysis process. Routes inputs to specific algorithms, manages Web Workers, and aggregates results.
+ * @pipelineLocation Middle-tier controller. Sits between the UI (main.js / resultsController) and the lower-level algorithms.
+ * @changeImpact Modifying worker instantiation or message passing logic here will disrupt the asynchronous non-blocking UI flow and could cause race conditions.
+ */
+
+/**
+ * @file core/alignmentEngine.js
  * @description Central coordinator for dispatching DNA/Protein sequence alignments.
  * @pipeline Sits between the UI layer (which calls runAlignment) and the algorithm/metrics layers. Converts raw user input into robust worker requests or fallback synchronous computations, returning standardized Contract payloads.
  */
@@ -11,6 +18,7 @@ import { calculateSimilarity } from '../metrics/similarityCalculator.js?v=27';
 import { isStatsValid, calculateStatistics } from '../metrics/blastStatistics.js?v=27';
 import { determineMode } from '../ui/modeConfigs.js?v=27';
 import { validateAlignment } from './alignmentValidator.js?v=27';
+import { jukesCantorDistance, poissonDistance } from '../metrics/phylogenetics.js';
 
 const VISUAL_LIMIT = 160_000;
 
@@ -30,7 +38,7 @@ function _getWorker() {
     }
 }
 
-export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh = null) {
+export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh = null, onProgress = null) {
     const isLocal = algoType === 'local' || algoType === 'blast';
     const strictMode = determineMode(seqType, isLocal, gapMath, matrixName);
 
@@ -44,13 +52,16 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
     const exNum = parseFloat(gapEx) || Number(gapEx);
 
     const algorithmFn = ALGORITHM_MAP[algoType] ?? smithWaterman;
-    const result = algorithmFn(seq1, seq2, gapMath, openNum, exNum, matrixName, customMatch, customMismatch);
+    const result = algorithmFn(seq1, seq2, gapMath, openNum, exNum, matrixName, customMatch, customMismatch, onProgress);
 
     const { dp, tb } = result;
     const cellCount = (dp.n + 1) * (dp.m + 1);
     const sendVisual = cellCount <= VISUAL_LIMIT;
 
     const identityPercent = calculateIdentity(tb.matches, tb.length);
+    const phylogeneticDistance = seqType === 'dna'
+        ? jukesCantorDistance(identityPercent / 100)
+        : poissonDistance(identityPercent / 100);
 
     let similarityPercent = null;
     if (seqType === 'protein' && tb.length > 0) {
@@ -91,6 +102,7 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
             bitScore: bitScoreVal,
             eValue: eValueVal,
             identity: identityPercent,
+            phylogeneticDistance: phylogeneticDistance,
             positives: tb.positives,
             gaps: tb.gaps,
             alignmentLength: tb.length,

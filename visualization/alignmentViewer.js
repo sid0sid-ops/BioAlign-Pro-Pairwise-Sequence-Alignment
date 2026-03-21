@@ -1,8 +1,16 @@
 /**
  * @file visualization/alignmentViewer.js
- * @description High-fidelity line-by-line pairwise character alignment renderer (the classic sequence map).
- * @pipeline The UI results controller calls this to inject fixed-width annotated text blocks showing matches, gaps (-), and highlighting chemical mismatches strictly.
+ * @description Constructs the classic mono-spaced three-line textual layout for alignments (SeqA, Match indicators, SeqB).
+ * @pipelineLocation Rendering tier. Formats strings for immediate display within pre/code HTML tags.
+ * @changeImpact Changing the line-wrap mathematics (e.g. from 60 to 80 characters) without synchronizing CSS will cause severe horizontal overflow rendering bugs.
  */
+
+/**
+ * @file visualization/alignmentViewer.js
+ * @description Ultra-performant HTML5 Canvas virtualization for sequence alignment mapping.
+ * @pipeline Replaces explicit DOM nodes with a single sticky canvas. Responds to native scroll events to paint only visible segments at 60 FPS.
+ */
+
 export const renderSequenceMap = (result) => {
     const container = document.getElementById('alignmentViewer');
     if (!container) return;
@@ -32,105 +40,195 @@ export const renderSequenceMap = (result) => {
         ).join('');
     }
 
+    // Canvas Settings
     const CHUNK = 60;
-    const CW = 14;
-    const CON_H = 24;
+    const ROW_H = 80; // Height allocated for one chunk block
+    const numRows = Math.ceil(len / CHUNK);
+    const totalHeight = numRows * ROW_H;
+
+    // Virtualization Wrapper (forces native browser scrollbar)
+    container.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+            <button id="copyVisibleBtn" class="px-2 py-1 text-[10px] font-mono rounded bg-white dark:bg-[#1a1a1a] border border-border hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                <i class="fa-solid fa-copy"></i> Copy Visible Block
+            </button>
+        </div>
+        <div id="canvasScrollWrapper" style="position:relative; width:100%; height: ${Math.min(600, Math.max(120, totalHeight + 40))}px; overflow-y: auto; overflow-x: auto; background:var(--surface,#f9f9f9); border:1px solid var(--border,#e5e7eb); border-radius:10px;">
+            <div style="position:absolute; top:0; left:0; width:1px; height:${totalHeight}px; pointer-events:none;"></div>
+            <canvas id="alignmentCanvas" style="position:sticky; top:0; left:0; width:100%; height:100%;"></canvas>
+        </div>
+    `;
+
+    const wrapper = document.getElementById('canvasScrollWrapper');
+    const canvas = document.getElementById('alignmentCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for opaque background
+
+    // High DPI Scaling
+    const dpr = window.devicePixelRatio || 1;
+    let canvasW = wrapper.clientWidth;
+    let canvasH = wrapper.clientHeight;
+
+    // We adjust canvas resolution to avoid blur on Retina/4K displays
+    const resizeCanvas = () => {
+        canvasW = wrapper.clientWidth;
+        canvasH = wrapper.clientHeight;
+        canvas.width = canvasW * dpr;
+        canvas.height = canvasH * dpr;
+        ctx.scale(dpr, dpr);
+        draw();
+    };
+
     const name1 = (window.currentS1Name || 'Seq_Alpha').substring(0, 12);
     const name2 = (window.currentS2Name || 'Seq_Beta').substring(0, 12);
-    const LABEL_W = '96px';
 
-    let chunks = '';
-    let aCursor = metrics.startI || 0;
-    let bCursor = metrics.startJ || 0;
-
-    for (let i = 0; i < len; i += CHUNK) {
-        const s1 = align1.substring(i, i + CHUNK);
-        const s2 = align2.substring(i, i + CHUNK);
-        const cLen = s1.length;
-
-        const charsA = s1.replace(/-/g, '').length;
-        const charsB = s2.replace(/-/g, '').length;
-        const startA = aCursor + 1;
-        const startB = bCursor + 1;
-        const endA = aCursor + charsA;
-        const endB = bCursor + charsB;
-
-        let row1 = '', conn = '', row2 = '';
-
-        for (let k = 0; k < cLen; k++) {
-            const a = s1[k];
-            const b = s2[k];
-
-            const gapA = (a === '-');
-            const gapB = (b === '-');
-            const matched = (!gapA && !gapB && a === b);
-            const mismatched = (!gapA && !gapB && a !== b);
-
-            const c1 = gapA ? '#9ca3af' : mismatched ? '#ef4444' : '#3b82f6';
-            const bold1 = (!gapA) ? '700' : '400';
-
-            const c2 = gapB ? '#9ca3af' : mismatched ? '#ef4444' : '#22c55e';
-            const bold2 = (!gapB) ? '700' : '400';
-
-            const cellStyle = `display:inline-block;width:${CW}px;text-align:center;font-family:'Courier New',monospace;font-size:13px;`;
-            row1 += `<span style="${cellStyle}color:${c1};font-weight:${bold1};">${a}</span>`;
-            row2 += `<span style="${cellStyle}color:${c2};font-weight:${bold2};">${b}</span>`;
-
-            const cStyle = `display:inline-block;width:${CW}px;height:${CON_H}px;position:relative;vertical-align:top;`;
-            if (matched) {
-                conn += `<span style="${cStyle}">` +
-                    `<span style="position:absolute;left:50%;transform:translateX(-50%);top:0;width:2px;height:100%;` +
-                    `background:linear-gradient(to bottom,#3b82f6 0%,#22c55e 100%);border-radius:1px;"></span>` +
-                    `</span>`;
-            } else if (mismatched) {
-                conn += `<span style="${cStyle}">` +
-                    `<span style="position:absolute;left:50%;transform:translateX(-50%);top:0;width:2px;height:100%;` +
-                    `background:#ef4444;border-radius:1px;"></span>` +
-                    `</span>`;
-            } else {
-                conn += `<span style="${cStyle}"></span>`;
-            }
-        }
-
-        const posStyle = `display:inline-block;width:36px;text-align:right;margin-right:6px;font-size:11px;font-family:monospace;color:#9ca3af;flex-shrink:0;`;
-        const endStyle = `font-size:11px;font-family:monospace;color:#9ca3af;margin-left:6px;min-width:28px;`;
-        const rowStyle = `display:flex;align-items:center;white-space:nowrap;`;
-        const nameStyle = (col) => `display:inline-block;min-width:${LABEL_W};font-weight:700;font-size:12px;font-family:monospace;color:${col};flex-shrink:0;`;
-
-        chunks += `
-        <div style="background:var(--surface,#f9f9f9);border:1px solid var(--border,#e5e7eb);border-radius:10px;
-                    padding:14px 20px;margin-bottom:12px;overflow-x:auto;">
-
-            <div style="${rowStyle}">
-                <span style="${nameStyle('#3b82f6')}">${name1}</span>
-                <span style="${posStyle}">${startA}</span>
-                <div style="display:inline-flex;flex-wrap:nowrap;">${row1}</div>
-                <span style="${endStyle}">${endA}</span>
-            </div>
-
-            <div style="${rowStyle}">
-                <span style="${nameStyle('transparent')}">&nbsp;</span>
-                <span style="${posStyle}"></span>
-                <div style="display:inline-flex;flex-wrap:nowrap;height:${CON_H}px;">${conn}</div>
-            </div>
-
-            <div style="${rowStyle}">
-                <span style="${nameStyle('#22c55e')}">${name2}</span>
-                <span style="${posStyle}">${startB}</span>
-                <div style="display:inline-flex;flex-wrap:nowrap;">${row2}</div>
-                <span style="${endStyle}">${endB}</span>
-            </div>
-
-        </div>`;
-
-        aCursor += charsA;
-        bCursor += charsB;
+    // Pre-calculate cumulative non-gap positions for fast index lookup
+    const posA = new Int32Array(len + 1);
+    const posB = new Int32Array(len + 1);
+    let curA = metrics.startI || 0, curB = metrics.startJ || 0;
+    for (let c = 0; c < len; c++) {
+        posA[c] = curA;
+        posB[c] = curB;
+        if (align1[c] !== '-') curA++;
+        if (align2[c] !== '-') curB++;
     }
+    posA[len] = curA;
+    posB[len] = curB;
 
-    container.innerHTML = `
-        <div style="width:100%;display:flex;flex-direction:column;align-items:stretch;padding:8px 0;box-sizing:border-box;">
-            ${chunks}
-        </div>`;
+    let lastDrawnStart = -1;
+    let lastDrawnEnd = -1;
 
+    const draw = () => {
+        const scrollTop = wrapper.scrollTop;
+
+        // Find visible rows (extend viewport slightly for smooth scrolling)
+        const startRow = Math.max(0, Math.floor(scrollTop / ROW_H) - 1);
+        const endRow = Math.min(numRows, Math.ceil((scrollTop + canvasH) / ROW_H) + 1);
+
+        // Don't redraw if exactly the same rows are visible
+        if (startRow === lastDrawnStart && endRow === lastDrawnEnd) return;
+        lastDrawnStart = startRow;
+        lastDrawnEnd = endRow;
+
+        // Clear Background (fastest way based on opaque context)
+        const isDark = document.documentElement.classList.contains('dark');
+        ctx.fillStyle = isDark ? '#080808' : '#f9f9f9';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        ctx.textBaseline = 'middle';
+        const PADDING_X = 20;
+        const LABEL_W = 100;
+        const POS_W = 40;
+        const CHAR_W = 12; // Pixel width per character slot
+
+        for (let r = startRow; r < endRow; r++) {
+            const yOffset = (r * ROW_H) - scrollTop; // Canvas local Y coordinate
+
+            const startIdx = r * CHUNK;
+            const endIdx = Math.min(len, startIdx + CHUNK);
+
+            if (startIdx >= len) break;
+
+            const subA = align1.substring(startIdx, endIdx);
+            const subB = align2.substring(startIdx, endIdx);
+
+            const pA_start = posA[startIdx] + 1;
+            const pB_start = posB[startIdx] + 1;
+            const pA_end = posA[endIdx];
+            const pB_end = posB[endIdx];
+
+            // Render Backing Box
+            ctx.fillStyle = isDark ? '#111' : '#fff';
+            ctx.strokeStyle = isDark ? '#333' : '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(PADDING_X - 10, yOffset + 10, canvasW - (PADDING_X * 2) + 20, ROW_H - 16, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Render Labels & Position Numbers
+            const line1Y = yOffset + 24;
+            const lineConY = yOffset + 38;
+            const line2Y = yOffset + 52;
+
+            ctx.font = "bold 12px monospace";
+            ctx.fillStyle = "#3b82f6"; ctx.fillText(name1, PADDING_X, line1Y);
+            ctx.fillStyle = "#22c55e"; ctx.fillText(name2, PADDING_X, line2Y);
+
+            ctx.font = "11px monospace";
+            ctx.fillStyle = "#9ca3af";
+            ctx.textAlign = "right";
+            ctx.fillText(pA_start.toString(), PADDING_X + LABEL_W + POS_W - 10, line1Y);
+            ctx.fillText(pB_start.toString(), PADDING_X + LABEL_W + POS_W - 10, line2Y);
+
+            ctx.textAlign = "left";
+            const seqStart_X = PADDING_X + LABEL_W + POS_W;
+
+            // Fast Character Loop
+            for (let k = 0; k < subA.length; k++) {
+                const a = subA[k];
+                const b = subB[k];
+                const x = seqStart_X + (k * CHAR_W);
+
+                const gapA = a === '-';
+                const gapB = b === '-';
+                const matched = !gapA && !gapB && a === b;
+                const mismatched = !gapA && !gapB && a !== b;
+
+                // Render A Char
+                ctx.font = gapA ? "400 13px Courier New, monospace" : "700 13px Courier New, monospace";
+                ctx.fillStyle = gapA ? '#9ca3af' : mismatched ? '#ef4444' : '#3b82f6';
+                ctx.fillText(a, x, line1Y);
+
+                // Render B Char
+                ctx.font = gapB ? "400 13px Courier New, monospace" : "700 13px Courier New, monospace";
+                ctx.fillStyle = gapB ? '#9ca3af' : mismatched ? '#ef4444' : '#22c55e';
+                ctx.fillText(b, x, line2Y);
+
+                // Render Connection Tick
+                if (matched) {
+                    ctx.fillStyle = "#22c55e"; // Use single solid color for perf, gradients heavily tax 2D rects
+                    ctx.fillRect(x + 3, lineConY - 4, 2, 8);
+                } else if (mismatched) {
+                    ctx.fillStyle = "#ef4444";
+                    ctx.fillRect(x + 3, lineConY - 4, 2, 8);
+                }
+            }
+
+            // End Positions
+            ctx.font = "11px monospace";
+            ctx.fillStyle = "#9ca3af";
+            const endX = seqStart_X + (CHUNK * CHAR_W) + 10;
+            ctx.fillText(pA_end.toString(), endX, line1Y);
+            ctx.fillText(pB_end.toString(), endX, line2Y);
+        }
+    };
+
+    // Initialize display
+    window.addEventListener('resize', resizeCanvas);
+    wrapper.addEventListener('scroll', () => requestAnimationFrame(draw));
+
+    // Kickstart
+    resizeCanvas();
+
+    // Attach "Copy Visible Block" functionality
+    document.getElementById('copyVisibleBtn').addEventListener('click', () => {
+        let blockText = "";
+        for (let r = lastDrawnStart; r < lastDrawnEnd; r++) {
+            if (r * CHUNK >= len) break;
+            const startIdx = r * CHUNK;
+            const endIdx = Math.min(len, startIdx + CHUNK);
+
+            blockText += name1.padEnd(14) + align1.substring(startIdx, endIdx) + "\n";
+            blockText += "".padEnd(14) + metrics.matchLine.substring(startIdx, endIdx) + "\n";
+            blockText += name2.padEnd(14) + align2.substring(startIdx, endIdx) + "\n\n";
+        }
+        navigator.clipboard.writeText(blockText).then(() => {
+            const btn = document.getElementById('copyVisibleBtn');
+            btn.innerHTML = `<i class="fa-solid fa-check text-green-500"></i> Copied!`;
+            setTimeout(() => { btn.innerHTML = `<i class="fa-solid fa-copy"></i> Copy Visible Block`; }, 2000);
+        });
+    });
+
+    // Save context for other exports
     window._lastAlignmentResult = result;
 };

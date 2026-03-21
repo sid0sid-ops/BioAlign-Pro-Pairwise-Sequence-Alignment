@@ -1,5 +1,10 @@
+
 # Node modules — never commit
 node_modules/
+
+# Environment files
+.env
+.env.*
 
 # Local dev logs
 *.log
@@ -8,6 +13,14 @@ npm-debug.log*
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Editor settings
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.cache
 
 # Export server heatmap PNGs (local only)
 export/*.png

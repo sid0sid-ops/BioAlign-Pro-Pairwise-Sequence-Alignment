@@ -1,5 +1,12 @@
 /**
  * @file metrics/similarityCalculator.js
+ * @description Determines 'similarity' (positives) by looking up aligned pairs in a scoring matrix and checking if their score is greater than zero.
+ * @pipelineLocation Post-computation metrics phase. Relies on scoringMatrix.js to classify positive evolutionary substitutions.
+ * @changeImpact Changing the >0 threshold assumption will blur the line between neutral mutations and conserved mutations.
+ */
+
+/**
+ * @file metrics/similarityCalculator.js
  * @description Utility to compute total functional similarity for protein translations.
  * @pipeline Scans an aligned sequence combination and references substitution data to determine if chemically similar mismatches warrant a 'positive' alignment hit contribution.
  */

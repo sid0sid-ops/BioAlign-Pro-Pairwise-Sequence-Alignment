@@ -1,5 +1,12 @@
 /**
  * @file core/gap.js
+ * @description Centralizes the mathematical logic for gap penalty application, distinguishing between affine model states (gap open vs. extend) and linear models.
+ * @pipelineLocation Lower-tier mathematical utility. Injected into DP algorithms during matrix initialization.
+ * @changeImpact Changing how gap extension vs. gap opening is differentiated will destroy the biological accuracy of alignments, heavily favoring or punishing indels incorrectly.
+ */
+
+/**
+ * @file core/gap.js
  * @description Gap penalty mathematical models (Linear & Affine).
  */
 

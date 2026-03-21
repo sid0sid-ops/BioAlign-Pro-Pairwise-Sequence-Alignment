@@ -1,5 +1,12 @@
 /**
  * @file core/dpMatrix.js
+ * @description Handles the high-performance memory allocation and 1D-array abstraction of 2D/3D dynamic programming matrices.
+ * @pipelineLocation Lower-tier memory manager. Used extensively by Smith-Waterman and Needleman-Wunsch classes for scoring.
+ * @changeImpact Altering the flat-array indexing logic (y * width + x) will immediately cause segmentation faults or silent array out-of-bounds corruption during alignment.
+ */
+
+/**
+ * @file core/dpMatrix.js
  * @description Low-level Dynamic Programming (DP) matrix initialization and scoring math.
  * @pipeline Used universally by Smith-Waterman and Needleman-Wunsch algorithms to generate the dense H-score and TB-traceback arrays needed for optimal pathway reconstruction.
  * 
@@ -15,7 +22,7 @@ import { ALIGNMENT_TB } from './contracts.js?v=27';
 
 const NEG_INF = -1e9;
 
-export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch) {
+export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, onProgress = null) {
     const n = s1.length;
     const m = s2.length;
     const W = m + 1;
@@ -39,6 +46,7 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
         }
 
         for (let i = 1; i <= n; i++) {
+            if (onProgress && i % 250 === 0) onProgress('DP Matrix (Linear)', (i / n) * 100);
             for (let j = 1; j <= m; j++) {
                 const idx = i * W + j;
                 const diagI = (i - 1) * W + (j - 1);
@@ -114,6 +122,7 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
         }
 
         for (let i = 1; i <= n; i++) {
+            if (onProgress && i % 250 === 0) onProgress('DP Matrix (Affine)', (i / n) * 100);
             for (let j = 1; j <= m; j++) {
                 const idx = i * W + j;
                 const diagI = (i - 1) * W + (j - 1);
