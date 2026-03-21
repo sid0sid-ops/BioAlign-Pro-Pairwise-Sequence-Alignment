@@ -13,7 +13,7 @@
 
 **BioAlign-Pro** bridges mathematical rigor with modern browser architecture. It delivers EMBL/EMBOSS-calibre alignment accuracy entirely client-side, eliminating server-side latency and ensuring complete data privacy.
 
-**[Launch Live Application](https://sid0sid-ops.github.io/BioAlign-Pro-Nucleotide-Sequence-Analyzer/)**
+**[Launch Live Application](https://sid0sid-ops.github.io/BioAlign-Pro-Pairwise-Sequence-Alignment/)**
 
 ## ⚡ Core Algorithms & Mathematics
 

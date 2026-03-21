@@ -131,13 +131,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PHASE 3: SPA Hash Router
     function handleRoute() {
-        const hash = window.location.hash || '#/home';
+        const hash = window.location.hash || '#/pairwise-sequence-alignment';
         const route = hash.replace('#/', '');
 
-        if (route === 'home' || !route) {
+        if (route === 'pairwise-sequence-alignment' || route === 'home' || !route) {
             returnToLanding();
-        } else if (['global', 'local', 'blast'].includes(route)) {
-            startAlignmentMode(route);
+        } else if (route === 'global-alignment') {
+            startAlignmentMode('global');
+        } else if (route === 'local-alignment') {
+            startAlignmentMode('local');
+        } else if (route === 'blast-like-search' || route === 'blast-search') {
+            startAlignmentMode('blast');
         }
     }
     window.addEventListener('hashchange', handleRoute);

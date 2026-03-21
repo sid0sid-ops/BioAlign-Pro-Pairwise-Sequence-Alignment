@@ -210,9 +210,9 @@ export function renderHeatmap(result) {
             <canvas id="pureCanvasHeatmap" style="flex-grow:1; width:100%; height:100%; min-height:400px; display:block; border-radius:8px;"></canvas>
             <div class="flex flex-wrap justify-between text-xs text-muted mt-2 px-2">
                 <div class="flex items-center gap-2">
-                    <span style="display:inline-block;width:12px;height:12px;background:#1e3a8a;border-radius:2px;"></span> Mismatches/Gaps
-                    <span style="display:inline-block;width:12px;height:12px;background:#fef08a;border-radius:2px;margin-left:8px;"></span> Neutral
-                    <span style="display:inline-block;width:12px;height:12px;background:#b91c1c;border-radius:2px;margin-left:8px;"></span> High Match Score
+                    <span style="display:inline-block;width:12px;height:12px;background:rgb(30,58,138);border-radius:2px;"></span> Low Score
+                    <span style="display:inline-block;width:12px;height:12px;background:rgb(255,255,255);border-radius:2px;border:1px solid #ccc;margin-left:8px;"></span> Neutral (Zero)
+                    <span style="display:inline-block;width:12px;height:12px;background:rgb(185,28,28);border-radius:2px;margin-left:8px;"></span> High Score
                 </div>
                 <div class="flex items-center gap-2 font-mono font-semibold">
                     <span style="display:inline-block;width:20px;height:3px;background:#000;dark:background:#fff;"></span> Optimal Trace
@@ -256,7 +256,7 @@ export function renderHeatmap(result) {
         ctx.fillStyle = isDark ? '#000' : '#fff';
         ctx.fillRect(0, 0, W_px, H_px);
 
-        // Fast paint loop: Diverging Color Map (Blue <-> Yellow <-> Red)
+        // Fast paint loop: Diverging Color Map (Blue <-> White <-> Red)
         for (let i = 0; i <= n; i++) {
             const y = i * cellH;
             const roundedY = Math.floor(y);
@@ -268,16 +268,16 @@ export function renderHeatmap(result) {
 
                 if (val >= 0) {
                     const ratio = Math.min(1, val / rangePos);
-                    // Yellow (254, 240, 138) to Red (185, 28, 28)
-                    r = Math.floor(254 - (69 * ratio));
-                    g = Math.floor(240 - (212 * ratio));
-                    b = Math.floor(138 - (110 * ratio));
+                    // Blue-White-Red (Scientific 'RdBu' Divergent) -> White (255, 255, 255) to Red (185, 28, 28)
+                    r = Math.floor(255 - (70 * ratio));
+                    g = Math.floor(255 - (227 * ratio));
+                    b = Math.floor(255 - (227 * ratio));
                 } else {
                     const ratio = Math.min(1, Math.abs(val) / rangeNeg);
-                    // Yellow (254, 240, 138) to Deep Blue (30, 58, 138)
-                    r = Math.floor(254 - (224 * ratio));
-                    g = Math.floor(240 - (182 * ratio));
-                    b = Math.floor(138 - (0 * ratio));
+                    // White (255, 255, 255) to Deep Blue (30, 58, 138)
+                    r = Math.floor(255 - (225 * ratio));
+                    g = Math.floor(255 - (197 * ratio));
+                    b = Math.floor(255 - (117 * ratio));
                 }
 
                 ctx.fillStyle = `rgb(${r},${g},${b})`;

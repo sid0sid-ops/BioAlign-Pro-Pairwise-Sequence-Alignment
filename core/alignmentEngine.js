@@ -18,7 +18,7 @@ import { calculateSimilarity } from '../metrics/similarityCalculator.js?v=27';
 import { isStatsValid, calculateStatistics } from '../metrics/blastStatistics.js?v=27';
 import { determineMode } from '../ui/modeConfigs.js?v=27';
 import { validateAlignment } from './alignmentValidator.js?v=27';
-import { jukesCantorDistance, poissonDistance } from '../metrics/phylogenetics.js';
+import { jukesCantorDistance, poissonDistance } from '../metrics/phylogenetics.js?v=27';
 
 const VISUAL_LIMIT = 160_000;
 

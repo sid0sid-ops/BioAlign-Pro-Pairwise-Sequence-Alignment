@@ -52,6 +52,14 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
             matchLine = ' ' + matchLine;
             gaps++;
         }
+
+        let tmpI = n;
+        let tmpJ = m;
+        while (tmpI > maxI || tmpJ > maxJ) {
+            tracePath.push([tmpI, tmpJ]);
+            if (tmpI > maxI) tmpI--;
+            else if (tmpJ > maxJ) tmpJ--;
+        }
     }
 
     while (i > 0 || j > 0) {

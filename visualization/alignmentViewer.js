@@ -61,20 +61,24 @@ export const renderSequenceMap = (result) => {
 
     const wrapper = document.getElementById('canvasScrollWrapper');
     const canvas = document.getElementById('alignmentCanvas');
-    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for opaque background
+    const ctx = canvas.getContext('2d');
 
     // High DPI Scaling
     const dpr = window.devicePixelRatio || 1;
-    let canvasW = wrapper.clientWidth;
-    let canvasH = wrapper.clientHeight;
+    let canvasW = wrapper.clientWidth || 800;
+    let canvasH = wrapper.clientHeight || 200;
 
     // We adjust canvas resolution to avoid blur on Retina/4K displays
     const resizeCanvas = () => {
+        if (!wrapper.clientWidth || !wrapper.clientHeight) return;
         canvasW = wrapper.clientWidth;
         canvasH = wrapper.clientHeight;
         canvas.width = canvasW * dpr;
         canvas.height = canvasH * dpr;
         ctx.scale(dpr, dpr);
+        // Force full repaint
+        lastDrawnStart = -1;
+        lastDrawnEnd = -1;
         draw();
     };
 
@@ -109,9 +113,10 @@ export const renderSequenceMap = (result) => {
         lastDrawnStart = startRow;
         lastDrawnEnd = endRow;
 
-        // Clear Background (fastest way based on opaque context)
+        // Clear Background manually to guarantee it isn't transparent black
         const isDark = document.documentElement.classList.contains('dark');
-        ctx.fillStyle = isDark ? '#080808' : '#f9f9f9';
+        ctx.clearRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = isDark ? '#080808' : '#ffffff';
         ctx.fillRect(0, 0, canvasW, canvasH);
 
         ctx.textBaseline = 'middle';
@@ -141,7 +146,11 @@ export const renderSequenceMap = (result) => {
             ctx.strokeStyle = isDark ? '#333' : '#e5e7eb';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect(PADDING_X - 10, yOffset + 10, canvasW - (PADDING_X * 2) + 20, ROW_H - 16, 8);
+            if (ctx.roundRect) {
+                ctx.roundRect(PADDING_X - 10, yOffset + 10, canvasW - (PADDING_X * 2) + 20, ROW_H - 16, 8);
+            } else {
+                ctx.rect(PADDING_X - 10, yOffset + 10, canvasW - (PADDING_X * 2) + 20, ROW_H - 16);
+            }
             ctx.fill();
             ctx.stroke();
 
@@ -203,12 +212,22 @@ export const renderSequenceMap = (result) => {
         }
     };
 
-    // Initialize display
+    // Initialize display with robust ResizeObserver
     window.addEventListener('resize', resizeCanvas);
     wrapper.addEventListener('scroll', () => requestAnimationFrame(draw));
 
-    // Kickstart
-    resizeCanvas();
+    if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+            if (wrapper.clientWidth > 0 && wrapper.clientHeight > 0) {
+                requestAnimationFrame(resizeCanvas);
+            }
+        });
+        ro.observe(wrapper);
+    } else {
+        // Fallback for very old browsers
+        setTimeout(resizeCanvas, 50);
+        setTimeout(resizeCanvas, 300);
+    }
 
     // Attach "Copy Visible Block" functionality
     document.getElementById('copyVisibleBtn').addEventListener('click', () => {

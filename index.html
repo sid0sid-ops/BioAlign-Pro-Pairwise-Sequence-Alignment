@@ -172,7 +172,7 @@
                         Pairwise Alignment</h3>
                     <div class="flex flex-wrap justify-center sm:justify-start gap-6 w-full">
                         <!-- Global Alignment Card -->
-                        <button onclick="window.location.hash = '#/global'"
+                        <button onclick="window.location.hash = '#/global-alignment'"
                             class="flex-[1_1_min(100%,_300px)] max-w-md group relative bg-surface border border-border p-8 rounded-2xl hover:border-red-500 transition-all duration-300 text-left hover:shadow-[0_0_30px_rgba(239,68,68,0.15)] overflow-hidden">
                             <div
                                 class="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -198,7 +198,7 @@
                         </button>
 
                         <!-- Local Alignment Card -->
-                        <button onclick="window.location.hash = '#/local'"
+                        <button onclick="window.location.hash = '#/local-alignment'"
                             class="flex-[1_1_min(100%,_300px)] max-w-md group relative bg-surface border border-border p-8 rounded-2xl hover:border-emerald-500 transition-all duration-300 text-left hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] overflow-hidden">
                             <div
                                 class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -230,7 +230,7 @@
                         Database Search</h3>
                     <div class="flex flex-wrap justify-center sm:justify-start gap-6 w-full">
                         <!-- BLAST-like Search Card -->
-                        <button onclick="window.location.hash = '#/blast'"
+                        <button onclick="window.location.hash = '#/blast-like-search'"
                             class="flex-[1_1_min(100%,_300px)] max-w-md group relative bg-surface border border-border p-8 rounded-2xl hover:border-blue-500 transition-all duration-300 text-left hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] overflow-hidden">
                             <div
                                 class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -266,7 +266,7 @@
 
             <div class="flex items-start sm:items-center justify-between">
                 <div class="w-full">
-                    <button onclick="window.location.hash = '#/home'"
+                    <button onclick="window.location.hash = '#/pairwise-sequence-alignment'"
                         class="text-sm text-muted hover:text-black dark:hover:text-white flex items-center gap-2 mb-2 transition-colors">
                         <i class="fa-solid fa-arrow-left"></i> Back to selection
                     </button>
@@ -914,7 +914,7 @@
     <div id="toastContainer" class="fixed bottom-6 left-6 z-50 flex flex-col gap-2"></div>
 
     <!-- Core Dynamic DP Engines -->
-    <script type="module" src="dist/main.js?v=28"></script>
+    <script type="module" src="dist/main.js?v=30"></script>
 
 
 </body>

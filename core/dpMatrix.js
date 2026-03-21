@@ -78,7 +78,7 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
         const Ix = new Float32Array(sz);
         const Iy = new Float32Array(sz);
 
-        const openPenalty = gapOp;
+        const openPenalty = gapOp + gapEx;
         const extendPenalty = gapEx;
 
         M_mat[0] = 0;
