@@ -1,0 +1,915 @@
+<!-- ================================================================
+ @file index.html
+ @location Root UI Layer
+ @pipeline ENTRY → User Interface Layer
+ 
+ @description
+ Main HTML interface for BioAlign-Pro. This file defines the
+ complete graphical user interface including:
+ - sequence input panels
+ - algorithm selection controls
+ - advanced alignment parameters
+ - result visualization containers
+ - export options
+ 
+ This file does not perform alignment computations. Instead,
+ it binds UI events to JavaScript modules defined in main.js.
+ 
+ @pipeline_flow
+ User Input → main.js → alignmentEngine.js → algorithms →
+ DP matrix → traceback → metrics → UI rendering
+ 
+ @dependencies
+ main.js
+ TailwindCSS
+ FontAwesome
+
+ @outputs
+ Sends user input sequences and parameters to the application
+ runtime through JavaScript event handlers.
+
+ @modification_impact
+ Changes here only affect visual layout or UI controls.
+ Alignment algorithms and scoring results remain unaffected.
+
+ ================================================================ -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioAlign-Pro | Pairwise Sequence Alignment </title>
+    <meta name="description"
+        content="Pairwise Sequence Alignment Tool . Engineered by Siddharth Tripathi, M.Sc. candidate in Systems Biology & Bioinformatics at Panjab University (PU), Chandigarh.">
+    <meta name="author" content="Siddharth Tripathi">
+    <meta name="keywords"
+        content="Bioinformatics, Sequence Alignment, Needleman-Wunsch, Smith-Waterman, DP Algorithms, Siddharth Tripathi, PU Chandigarh">
+    <link rel="icon" type="image/png" href="favicon.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS Compiled -->
+    <link rel="stylesheet" href="css/tailwind.output.css">
+    <script>
+        // Theme Initialization: Check local storage or system preference
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }        
+    </script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/style.css">
+
+
+
+    <!-- External Libraries -->
+    <!-- Plotly.js for interactive charting (Updated from deprecated latest.min.js) -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+
+<body
+    class="bg-background text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col">
+
+    <!-- Dynamic Background Canvas (DNA/Protein representation) -->
+    <canvas id="bgCanvas"
+        class="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none opacity-20 dark:opacity-100"></canvas>
+
+    <!-- Navigation / Header  -->
+    <nav
+        class="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between shadow-sm relative">
+        <div class="flex items-center gap-3">
+            <div class="flex flex-col">
+                <span class="text-[9px] font-mono text-muted tracking-widest uppercase leading-none mb-1">Pairwise
+                    Sequence Alignment (PSA)</span>
+                <h1 class="text-xl font-bold tracking-tight leading-none pt-0 mt-0 text-black dark:text-white mb-1">
+                    BioAlign<span id="proText"
+                        class="text-black dark:text-white transition-colors duration-300">-Pro</span></h1>
+                <span class="text-[0.6rem] italic text-muted font-serif tracking-wide leading-relaxed animate-motto">
+                    "Where chemicals became so advanced that they started studying themselves."
+                </span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-sm font-medium text-muted">
+            <button onclick="toggleTheme()"
+                class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors focus:outline-none"
+                title="Toggle Light/Dark Theme">
+                <i id="themeIcon" class="fa-solid fa-moon text-black dark:text-white"></i>
+            </button>
+            <div class="flex items-center gap-4">
+                <a href="https://sid0sid-ops.github.io/BioAlign-Pro-Homepage/" target="_blank"
+                    class="flex items-center gap-2 px-3 py-1 hover:bg-black/5 dark:hover:bg-white/10 hover:text-black dark:hover:text-white rounded-full transition-colors focus:outline-none"
+                    title="Reload / Home">
+                    <i class="fa-solid fa-house"></i> <span class="hidden sm:inline">Home</span>
+                </a>
+                <a href="https://sid0sid-ops.github.io/BioAlign-Pro-Contact/" target="_blank"
+                    class="px-3 py-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors border border-black dark:border-white">Contact</a>
+            </div>
+
+            <!-- Mobile Hamburger Menu Toggle -->
+            <button id="mobileMenuBtn" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')"
+                class="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors focus:outline-none text-black dark:text-white">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+
+            <!-- Mobile Menu Dropdown -->
+            <div id="mobileMenu"
+                class="hidden absolute top-full mt-2 right-4 w-48 bg-surface border border-border rounded-xl shadow-xl flex flex-col py-2 z-50 animate-slide-up">
+                <a href="https://sid0sid-ops.github.io/BioAlign-Pro-Homepage/" target="_blank"
+                    class="w-full text-left px-4 py-3 text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-3">
+                    <i class="fa-solid fa-house w-4"></i> Home
+                </a>
+                <div class="h-px bg-border w-full my-1"></div>
+                <a href="https://sid0sid-ops.github.io/BioAlign-Pro-Contact/" target="_blank"
+                    class="w-full text-left px-4 py-3 text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-3 font-semibold">
+                    <i class="fa-solid fa-envelope w-4"></i> Contact
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow w-full max-w-[72rem] mx-auto px-4 py-8 flex flex-col gap-8 animate-fade-in relative z-10">
+
+        <!-- Stage 1: Landing / Mode Selection -->
+        <section id="landingStage"
+            class="flex flex-col items-center justify-center py-16 gap-6 text-center animate-slide-up">
+            <div class="max-w-2xl space-y-4">
+                <h2 class="text-4xl font-extrabold tracking-tight sm:text-5xl text-black dark:text-white">Pairwise
+                    Sequence
+                    <br>Alignment Engine
+                </h2>
+                <p class="text-lg text-muted">A research-grade tool combining the robustness of EMBOSS and NCBI BLAST
+                    mathematics. Select an algorithm to begin pairwise analysis of nucleotide or protein sequences.</p>
+            </div>
+
+            <div class="mt-6 mb-6 flex items-center gap-2 bg-surface p-1.5 rounded-full border border-border shadow-sm">
+                <button id="typeProteinBtn" onclick="setSequenceType('protein')" class="yt-chip active">Protein
+                </button>
+                <button id="typeDnaBtn" onclick="setSequenceType('dna')" class="yt-chip">DNA
+                    / RNA</button>
+            </div>
+
+            <div class="w-full max-w-5xl mt-8 flex flex-col gap-10">
+
+                <!-- Section 1: Pairwise Alignment -->
+                <div class="w-full">
+                    <h3 class="text-xl font-bold text-black dark:text-white mb-5 border-b border-border pb-3 text-left">
+                        Pairwise Alignment</h3>
+                    <div class="flex flex-wrap justify-center sm:justify-start gap-6 w-full">
+                        <!-- Global Alignment Card -->
+                        <button onclick="startAlignmentMode('global')"
+                            class="flex-[1_1_min(100%,_300px)] max-w-md group relative bg-surface border border-border p-8 rounded-2xl hover:border-red-500 transition-all duration-300 text-left hover:shadow-[0_0_30px_rgba(239,68,68,0.15)] overflow-hidden">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            </div>
+                            <div class="relative z-10">
+                                <div
+                                    class="w-12 h-12 rounded-xl bg-black/5 dark:bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
+                                    <i class="fa-solid fa-arrows-left-right-to-line text-xl"></i>
+                                </div>
+                                <h3
+                                    class="text-2xl font-bold text-black dark:text-white mb-2 group-hover:text-red-500 transition-colors">
+                                    Global
+                                    Alignment</h3>
+                                <p class="text-sm text-muted mb-4 font-medium">
+                                    Needleman-Wunsch Algorithm</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed text-justify">Forces
+                                    end-to-end alignment.
+                                    Best for closely related sequences of similar lengths. Useful for identifying
+                                    overall
+                                    structural homogeneity.
+                                </p>
+                            </div>
+                        </button>
+
+                        <!-- Local Alignment Card -->
+                        <button onclick="startAlignmentMode('local')"
+                            class="flex-[1_1_min(100%,_300px)] max-w-md group relative bg-surface border border-border p-8 rounded-2xl hover:border-emerald-500 transition-all duration-300 text-left hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] overflow-hidden">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            </div>
+                            <div class="relative z-10">
+                                <div
+                                    class="w-12 h-12 rounded-xl bg-black/5 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-6">
+                                    <i class="fa-solid fa-magnifying-glass-chart text-xl"></i>
+                                </div>
+                                <h3
+                                    class="text-2xl font-bold text-black dark:text-white mb-2 group-hover:text-emerald-500 transition-colors">
+                                    Local Alignment</h3>
+                                <p class="text-sm text-muted mb-4 font-medium">Smith-Waterman Algorithm</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed text-justify">Finds
+                                    localized
+                                    regions of
+                                    high similarity. Ideal for discovering conserved domains between distantly related
+                                    or vastly
+                                    different length sequences.
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section 2: Database Search -->
+                <div class="w-full mt-4">
+                    <h3 class="text-xl font-bold text-black dark:text-white mb-5 border-b border-border pb-3 text-left">
+                        Database Search</h3>
+                    <div class="flex flex-wrap justify-center sm:justify-start gap-6 w-full">
+                        <!-- BLAST-like Search Card -->
+                        <button onclick="startAlignmentMode('blast')"
+                            class="flex-[1_1_min(100%,_300px)] max-w-md group relative bg-surface border border-border p-8 rounded-2xl hover:border-blue-500 transition-all duration-300 text-left hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] overflow-hidden">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            </div>
+                            <div class="relative z-10">
+                                <div
+                                    class="w-12 h-12 rounded-xl bg-black/5 dark:bg-blue-500/10 flex items-center justify-center text-blue-500 mb-6">
+                                    <i class="fa-solid fa-bolt text-xl"></i>
+                                </div>
+                                <h3
+                                    class="text-2xl font-bold text-black dark:text-white mb-2 group-hover:text-blue-500 transition-colors">
+                                    BLAST-like Search</h3>
+                                <p class="text-sm text-muted mb-4 font-medium">NCBI BLAST Mathematics</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed text-justify">
+                                    Heuristic local
+                                    alignment
+                                    using exact Karlin-Altschul statistics and linear gaps. Best for large database
+                                    searching
+                                    mimicking NCBI behavior.
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Stage 2: Main Application Workspace (Hidden initially) -->
+        <section id="workspaceStage" class="hidden flex-col gap-8">
+
+            <div class="flex items-start sm:items-center justify-between">
+                <div class="w-full">
+                    <button onclick="returnToLanding()"
+                        class="text-sm text-muted hover:text-black dark:hover:text-white flex items-center gap-2 mb-2 transition-colors">
+                        <i class="fa-solid fa-arrow-left"></i> Back to selection
+                    </button>
+                    <h2 id="workspaceTitle"
+                        class="text-2xl sm:text-3xl font-bold text-black dark:text-white flex flex-wrap items-center gap-2 sm:gap-3">
+                        Global Alignment <span
+                            class="px-2 py-1 bg-surface border border-border rounded text-xs font-mono text-red-500 font-normal whitespace-normal w-max max-w-full leading-tight">Needleman-Wunsch</span>
+                    </h2>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+
+                <!-- Left Column: Inputs -->
+                <div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-6 order-1">
+
+                    <!-- Sequence 1 Panel -->
+                    <div
+                        class="bg-surface/50 backdrop-blur-sm border border-border rounded-xl overflow-hidden panel-shadow">
+                        <div
+                            class="px-5 py-4 border-b border-border flex flex-wrap justify-between items-center gap-y-3 bg-surface">
+                            <h3 id="seq1Title" class="font-semibold text-black dark:text-gray-200">Sequence 1 (Alpha)
+                            </h3>
+
+                            <!-- Tabs & Actions -->
+                            <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+                                <button onclick="loadExample(1)"
+                                    class="text-muted hover:text-black dark:hover:text-white transition-colors text-xs flex items-center gap-1"
+                                    title="Load Example Sequence"><i class="fa-solid fa-flask"></i> <span
+                                        class="hidden sm:inline">Ex.</span></button>
+                                <button onclick="clearSeq(1)"
+                                    class="text-muted hover:text-destructive transition-colors text-xs flex items-center gap-1 border-r border-border pr-2 sm:pr-3"
+                                    title="Clear Inputs"><i class="fa-solid fa-rotate-left"></i></button>
+
+                                <div class="flex space-x-1 bg-background p-1 rounded-lg border border-border">
+                                    <button onclick="switchTab(1, 'manual')" id="tab-1-manual"
+                                        class="tab-btn active px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm">Manual</button>
+                                    <button onclick="switchTab(1, 'upload')" id="tab-1-upload"
+                                        class="tab-btn px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted">Upload</button>
+                                    <button onclick="switchTab(1, 'ncbi')" id="tab-1-ncbi"
+                                        class="tab-btn px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted">NCBI</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-5">
+                            <!-- Manual Input -->
+                            <div id="content-1-manual" class="tab-content block">
+                                <textarea id="seq1" spellcheck="false"
+                                    class="w-full h-[clamp(6rem,15vh,16rem)] bg-background border border-border rounded-lg p-3 text-gray-900 dark:text-gray-200 font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all resize-y"
+                                    placeholder="Paste sequence (e.g., AGTCGATCGTAT...)"></textarea>
+                            </div>
+                            <!-- Upload FASTA -->
+                            <div id="content-1-upload"
+                                class="tab-content hidden h-[clamp(6rem,15vh,16rem)] flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg bg-background/50 relative px-4 text-center transition-colors hover:bg-surface/50 hover:border-black/30 dark:hover:border-white/30"
+                                ondragover="event.preventDefault(); this.classList.add('border-green-500', 'bg-green-500/5')"
+                                ondragleave="this.classList.remove('border-green-500', 'bg-green-500/5')"
+                                ondrop="handleFileDrop(event, 1);">
+                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-muted mb-2 pointer-events-none"></i>
+                                <span
+                                    class="text-sm text-gray-900 dark:text-gray-200 font-medium mb-1 pointer-events-none">Drag
+                                    & Drop FASTA</span>
+                                <span class="text-xs text-muted mb-3 pointer-events-none">or .txt, .seq files</span>
+                                <input type="file" id="file-upload-1" accept=".fasta,.fas,.fa,.txt,.seq"
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    onchange="handleFileUpload(event, 1)">
+                                <button
+                                    class="px-3 py-1.5 bg-background border border-border rounded-md text-xs font-medium pointer-events-none shadow-sm text-black dark:text-white">Browse
+                                    Files</button>
+                            </div>
+                            <!-- NCBI Fetch -->
+                            <div id="content-1-ncbi" class="tab-content hidden space-y-4">
+                                <div class="flex gap-3">
+                                    <div
+                                        class="relative flex-grow shine-wrapper rounded-lg overflow-hidden border border-border bg-background focus-within:ring-1 focus-within:ring-black dark:focus-within:ring-white transition-all">
+                                        <i
+                                            class="fa-solid fa-database absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm z-10 pointer-events-none"></i>
+                                        <input type="text" id="ncbi-search-1"
+                                            class="w-full h-full bg-transparent py-2 pl-9 pr-4 text-sm text-gray-900 dark:text-gray-200 focus:outline-none relative z-10"
+                                            aria-label="NCBI Accession ID for Sequence 1"
+                                            placeholder="Enter Accession ID (e.g., NM_001301717)"
+                                            onkeydown="if(event.key === 'Enter') fetchNCBI(1)">
+                                    </div>
+                                    <button onclick="fetchNCBI(1)" id="btn-fetch-1"
+                                        class="px-4 py-2 bg-black text-white dark:bg-white dark:text-black hover:opacity-80 rounded-lg text-sm font-medium transition-opacity whitespace-nowrap shadow-sm min-w-[100px] flex justify-center items-center relative z-20">
+                                        Fetch
+                                    </button>
+                                </div>
+                                <div id="ncbi-status-1" class="text-xs text-muted flex items-center gap-2 hidden">
+                                    <i class="fa-solid fa-circle-info"></i> <span class="status-text">Status
+                                        message</span>
+                                </div>
+                                <textarea id="seq1-ext" readonly
+                                    class="hidden w-full h-[clamp(4rem,10vh,8rem)] bg-background/50 border border-border rounded-lg p-3 text-gray-400 font-mono text-xs overflow-y-auto"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sequence 2 Panel -->
+                    <div
+                        class="bg-surface/50 backdrop-blur-sm border border-border rounded-xl overflow-hidden panel-shadow">
+                        <div
+                            class="px-5 py-4 border-b border-border flex flex-wrap justify-between items-center gap-y-3 bg-surface">
+                            <h3 id="seq2Title" class="font-semibold text-black dark:text-gray-200">Sequence 2 (Beta)
+                            </h3>
+
+                            <!-- Tabs -->
+                            <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+                                <button onclick="loadExample(2)"
+                                    class="text-muted hover:text-black dark:hover:text-white transition-colors text-xs flex items-center gap-1"
+                                    title="Load Example Sequence"><i class="fa-solid fa-flask"></i> <span
+                                        class="hidden sm:inline">Ex.</span></button>
+                                <button onclick="clearSeq(2)"
+                                    class="text-muted hover:text-destructive transition-colors text-xs flex items-center gap-1 border-r border-border pr-2 sm:pr-3"
+                                    title="Clear Inputs"><i class="fa-solid fa-rotate-left"></i></button>
+
+                                <div class="flex space-x-1 bg-background p-1 rounded-lg border border-border">
+                                    <button onclick="switchTab(2, 'manual')" id="tab-2-manual"
+                                        class="tab-btn active px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm">Manual</button>
+                                    <button onclick="switchTab(2, 'upload')" id="tab-2-upload"
+                                        class="tab-btn px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted">Upload</button>
+                                    <button onclick="switchTab(2, 'ncbi')" id="tab-2-ncbi"
+                                        class="tab-btn px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted">NCBI</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-5">
+                            <!-- Manual Input -->
+                            <div id="content-2-manual" class="tab-content block">
+                                <textarea id="seq2" spellcheck="false"
+                                    class="w-full h-[clamp(6rem,15vh,16rem)] bg-background border border-border rounded-lg p-3 text-gray-900 dark:text-gray-200 font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all resize-y"
+                                    placeholder="Paste sequence (e.g., AGTCGATCGTAT...)"></textarea>
+                            </div>
+                            <!-- Upload FASTA -->
+                            <div id="content-2-upload"
+                                class="tab-content hidden h-[clamp(6rem,15vh,16rem)] flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg bg-background/50 relative px-4 text-center transition-colors hover:bg-surface/50 hover:border-black/30 dark:hover:border-white/30"
+                                ondragover="event.preventDefault(); this.classList.add('border-green-500', 'bg-green-500/5')"
+                                ondragleave="this.classList.remove('border-green-500', 'bg-green-500/5')"
+                                ondrop="handleFileDrop(event, 2);">
+                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-muted mb-2 pointer-events-none"></i>
+                                <span
+                                    class="text-sm text-gray-900 dark:text-gray-200 font-medium mb-1 pointer-events-none">Drag
+                                    & Drop FASTA</span>
+                                <span class="text-xs text-muted mb-3 pointer-events-none">or .txt, .seq files</span>
+                                <input type="file" id="file-upload-2" accept=".fasta,.fas,.fa,.txt,.seq"
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    onchange="handleFileUpload(event, 2)">
+                                <button
+                                    class="px-3 py-1.5 bg-background border border-border rounded-md text-xs font-medium pointer-events-none shadow-sm text-black dark:text-white">Browse
+                                    Files</button>
+                            </div>
+                            <!-- NCBI Fetch -->
+                            <div id="content-2-ncbi" class="tab-content hidden space-y-4">
+                                <div class="flex gap-3">
+                                    <div
+                                        class="relative flex-grow shine-wrapper rounded-lg overflow-hidden border border-border bg-background focus-within:ring-1 focus-within:ring-black dark:focus-within:ring-white transition-all">
+                                        <i
+                                            class="fa-solid fa-database absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm z-10 pointer-events-none"></i>
+                                        <input type="text" id="ncbi-search-2"
+                                            class="w-full h-full bg-transparent py-2 pl-9 pr-4 text-sm text-gray-900 dark:text-gray-200 focus:outline-none relative z-10"
+                                            aria-label="NCBI Accession ID for Sequence 2"
+                                            placeholder="Enter Accession ID (e.g., NM_001126118)"
+                                            onkeydown="if(event.key === 'Enter') fetchNCBI(2)">
+                                    </div>
+                                    <button onclick="fetchNCBI(2)" id="btn-fetch-2"
+                                        class="px-4 py-2 bg-black text-white dark:bg-white dark:text-black hover:opacity-80 rounded-lg text-sm font-medium transition-opacity whitespace-nowrap shadow-sm min-w-[100px] flex justify-center items-center relative z-20">
+                                        Fetch
+                                    </button>
+                                </div>
+                                <div id="ncbi-status-2" class="text-xs text-muted flex items-center gap-2 hidden">
+                                    <i class="fa-solid fa-circle-info"></i> <span class="status-text">Status
+                                        message</span>
+                                </div>
+                                <textarea id="seq2-ext" readonly
+                                    class="hidden w-full h-[clamp(4rem,10vh,8rem)] bg-background/50 border border-border rounded-lg p-3 text-gray-400 font-mono text-xs overflow-y-auto"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compute Button Panel -->
+                    <div class="flex flex-col mt-2">
+                        <button id="runAlignmentBtn" aria-label="Compute Alignment"
+                            class="w-full mt-6 py-4 rounded-xl text-lg font-bold transition-all relative overflow-hidden group 
+                                   bg-black text-white hover:bg-gray-900 
+                                   dark:bg-white dark:text-black dark:hover:bg-gray-100 
+                                   shadow-[0_4px_14px_0_rgba(0,0,0,0.39)] dark:shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] 
+                                   hover:shadow-[0_6px_20px_rgba(0,0,0,0.23)] dark:hover:shadow-[0_6px_20px_rgba(255,255,255,0.23)] hover:-translate-y-1">
+                            <i class="fa-solid fa-bolt"></i> Compute Alignment
+                        </button>
+                    </div>
+
+                </div>
+                <!-- Right Column: Parameters -->
+                <div class="lg:col-span-4 flex flex-col order-2">
+                    <div
+                        class="bg-surface border border-border rounded-xl overflow-visible panel-shadow flex flex-col z-50 relative sticky top-6 mb-6 lg:mb-0">
+                        <div
+                            class="px-5 py-4 border-b border-border flex justify-between items-center bg-surface rounded-t-xl">
+                            <h3 class="font-semibold text-black dark:text-gray-200 flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-muted"></i>
+                                Parameters
+
+                            </h3>
+                            <button onclick="toggleAdvancedOptions()"
+                                class="text-lg text-muted hover:text-black dark:hover:text-white flex items-center gap-1 transition-colors"
+                                title="Toggle Advanced Parameters">
+                                <span id="optionsToggleText" class="hidden"></span>
+                                <i id="optionsToggleIcon1" class="fa-solid fa-gear"></i>
+                            </button>
+                        </div>
+
+                        <!-- Always Visible Options -->
+                        <div class="p-5 flex-grow space-y-5 overflow-visible">
+
+                            <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                <label for="paramMatrix"
+                                    class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2 w-max relative z-[60]">
+                                    Scoring Matrix Protocol
+                                    <div class="tooltip-trigger relative flex items-center cursor-help">
+                                        <i
+                                            class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                        <div class="custom-tooltip">
+                                            The scoring rulebook that decides how many points you get for matches and
+                                            lose for mismatches.</div>
+                                    </div>
+                                </label>
+                                <select id="paramMatrix"
+                                    class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all">
+                                    <optgroup label="Protein Matrices" id="proteinMatrices" disabled class="hidden">
+                                        <option value="BLOSUM45">BLOSUM 45</option>
+                                        <option value="BLOSUM50">BLOSUM 50</option>
+                                        <option value="BLOSUM62" selected>BLOSUM 62</option>
+                                        <option value="BLOSUM80">BLOSUM 80</option>
+                                        <option value="BLOSUM90">BLOSUM 90</option>
+                                        <option value="PAM30">PAM 30</option>
+                                        <option value="PAM70">PAM 70</option>
+                                        <option value="PAM250">PAM250</option>
+                                    </optgroup>
+                                    <optgroup label="DNA/RNA Matrices" id="dnaMatrices">
+                                        <option value="DNAFULL" selected>DNAFULL (Standard DNA)</option>
+                                        <option value="BLASTN">BLASTN (Closer matching)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <!-- Advanced Options Block -->
+                            <div id="advancedOptionsBlock"
+                                class="space-y-6 animate-fade-in hidden pt-2 border-t border-border">
+                                <div id="customScoreGroup" class="grid grid-cols-2 gap-4 hidden">
+                                    <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                        <label for="paramMatchScore"
+                                            class="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">Match
+                                            Score
+                                        </label>
+                                        <input type="number" id="paramMatchScore" value="1" step="1"
+                                            class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white">
+                                    </div>
+                                    <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                        <label for="paramMismatchScore"
+                                            class="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">Mismatch
+                                            Penalty
+                                        </label>
+                                        <input type="number" id="paramMismatchScore" value="-3" step="1" max="0"
+                                            class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white">
+                                    </div>
+                                </div>
+                                <div id="ncbiWordSizeGroup" class="hidden space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-black dark:text-white mb-2">Word
+                                            Size (NCBI BLAST)</label>
+                                        <input type="number" id="paramWordSize" min="2" max="15" value="11"
+                                            class="w-full bg-surface border border-border text-black dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        <p class="text-xs text-muted mt-1">Seed length (k-mer).</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-black dark:text-white mb-2">Expect
+                                            Threshold</label>
+                                        <input type="number" id="paramExpectThreshold" min="0" step="any" value="0.05"
+                                            class="w-full bg-surface border border-border text-black dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        <p class="text-xs text-muted mt-1">E-value cutoff for keeping alignments.</p>
+                                    </div>
+                                </div>
+
+
+                                <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                    <label for="paramGapOpen"
+                                        class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
+                                        <span class="flex items-center gap-2">Gap Open Penalty
+                                            <div class="tooltip-trigger relative flex items-center cursor-help">
+                                                <i
+                                                    class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                                <div class="custom-tooltip">
+                                                    The strict penalty for starting a new gap. A higher number means the
+                                                    alignment will try to avoid creating gaps.
+                                                </div>
+                                            </div>
+                                        </span>
+                                        <span id="gapOpenVal" class="text-black dark:text-white font-bold">10</span>
+                                    </label>
+                                    <input type="range" id="paramGapOpen" min="1" max="20" value="10" step="1"
+                                        style="background:linear-gradient(to right,var(--primary) 47.4%,var(--chip-bg) 47.4%)"
+                                        class="w-full range-slider relative z-0"
+                                        oninput="document.getElementById('gapOpenVal').innerText=this.value">
+                                </div>
+
+                                <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                    <label for="paramGapExtend"
+                                        class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
+                                        <span class="flex items-center gap-2">Gap Extend Penalty
+                                            <div class="tooltip-trigger relative flex items-center cursor-help">
+                                                <i
+                                                    class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                                <div class="custom-tooltip">
+                                                    The lighter penalty for lengthening an existing gap. This encourages
+                                                    one long gap rather than many small, scattered ones.
+                                                </div>
+                                            </div>
+                                        </span>
+                                        <span id="gapExtVal" class="text-black dark:text-white font-bold">0.5</span>
+                                    </label>
+                                    <input type="range" id="paramGapExtend" min="0.1" max="5.0" value="0.5" step="0.1"
+                                        style="background:linear-gradient(to right,var(--primary) 8.2%,var(--chip-bg) 8.2%)"
+                                        class="w-full range-slider relative z-0"
+                                        oninput="document.getElementById('gapExtVal').innerText=this.value">
+                                </div>
+
+                                <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                    <label for="paramGapMath"
+                                        class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
+                                        <span class="flex items-center gap-2">Gap Math Mode
+                                            <div class="tooltip-trigger relative flex items-center cursor-help">
+                                                <i
+                                                    class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                                <div class="custom-tooltip" style="width: max-content;">
+                                                    EMBOSS formula = G_open + (k-1)G_ext. <br>
+                                                    NCBI formula = G_open + k G_ext.
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </label>
+                                    <select id="paramGapMath" onchange="applyModeDefaults()"
+                                        class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all">
+                                        <option value="affine">Affine Gap (EMBOSS Style)</option>
+                                        <option value="linear">Linear Gap (NCBI / BLAST)</option>
+                                    </select>
+                                </div>
+
+                                <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                    <label for="paramDbSize"
+                                        class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
+                                        <span class="flex items-center gap-2">Database Size (N)
+                                            <div class="tooltip-trigger relative flex items-center cursor-help">
+                                                <i
+                                                    class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                                <div class="custom-tooltip">
+                                                    Effective search space (in letters). Leave empty for pairwise. e.g.
+                                                    5000000000 for realistic BLAST E-value.
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </label>
+                                    <input type="number" id="paramDbSize" placeholder="Auto (Pairwise limit)" min="1"
+                                        step="any"
+                                        class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white transition-all">
+                                </div>
+
+                                <div
+                                    class="p-3 bg-background border border-border rounded-lg flex items-center justify-between relative group cursor-help z-10 hover:z-50 transition-all">
+                                    <label for="paramEndGaps"
+                                        class="text-sm font-medium text-black dark:text-gray-300 flex items-center gap-2 w-max relative z-[60]">Penalize
+                                        End Gaps
+                                        <div class="tooltip-trigger relative flex items-center cursor-help">
+                                            <i
+                                                class="fa-solid fa-circle-question text-[10px] text-muted hover:text-primary transition-colors"></i>
+                                            <div class="custom-tooltip">
+                                                Turn this ON to penalize mismatched overhangs at the very ends.<br>
+                                                Turn OFF if you are aligning a short sequence against a much longer one.
+                                            </div>
+                                        </div>
+                                    </label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="paramEndGaps" class="sr-only peer"
+                                            onchange="document.getElementById('endGapParams').classList.toggle('hidden', !this.checked)">
+                                        <div
+                                            class="w-11 h-6 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#065fd4] dark:peer-checked:bg-[#3ea6ff]">
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <!-- End Gap custom logic -->
+                                <div id="endGapParams" class="space-y-5 pt-2 hidden flex-col">
+                                    <div class="space-y-2 relative group z-10 hover:z-50 transition-all">
+                                        <label for="paramEndGapOpen"
+                                            class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
+                                            <span class="flex items-center gap-2">End Gap Open
+                                                <div class="tooltip-trigger relative flex items-center cursor-help">
+                                                    <i
+                                                        class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                                    <div class="custom-tooltip">
+                                                        The penalty for starting a new gap at the extreme beginning or
+                                                        end of the sequences.
+                                                    </div>
+                                                </div>
+                                            </span>
+                                            <span id="endGapOpenVal"
+                                                class="text-black dark:text-white font-bold">10</span>
+                                        </label>
+                                        <input type="range" id="paramEndGapOpen" min="1" max="20" value="10" step="1"
+                                            style="background:linear-gradient(to right,var(--primary) 47.4%,var(--chip-bg) 47.4%)"
+                                            class="w-full range-slider relative z-0"
+                                            oninput="document.getElementById('endGapOpenVal').innerText=this.value">
+                                    </div>
+                                    <div class="space-y-2 relative group z-0 hover:z-50 transition-all">
+                                        <label for="paramEndGapExtend"
+                                            class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
+                                            <span class="flex items-center gap-2">End Gap Extend
+                                                <div class="tooltip-trigger relative flex items-center cursor-help">
+                                                    <i
+                                                        class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
+                                                    <div class="custom-tooltip">
+                                                        The penalty for lengthening a gap at the extreme beginning or
+                                                        end of the sequences.</div>
+                                                </div>
+                                            </span>
+                                            <span id="endGapExtVal"
+                                                class="text-black dark:text-white font-bold">0.5</span>
+                                        </label>
+                                        <input type="range" id="paramEndGapExtend" min="0.1" max="5.0" value="0.5"
+                                            style="background:linear-gradient(to right,var(--primary) 8.2%,var(--chip-bg) 8.2%)"
+                                            step="0.1" class="w-full range-slider relative z-0"
+                                            oninput="document.getElementById('endGapExtVal').innerText=this.value">
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            </div>
+
+            <!-- Result Panel (Hidden initially) -->
+            <div id="resultsSection" class="hidden flex-col gap-6 mt-4 animate-slide-up">
+
+                <h2 class="text-2xl font-bold flex items-center gap-3 text-black dark:text-white">
+                    <i class="fa-solid fa-chart-gantt"></i> Alignment Telemetry
+                </h2>
+
+                <!-- Horizontal Telemetry Metrics -->
+                <div
+                    class="bg-surface border border-border rounded-xl p-4 flex flex-wrap justify-around items-center gap-4 text-center panel-shadow">
+                    <div class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Score</span>
+                        <span id="resScore" class="text-2xl font-bold text-black dark:text-white font-mono">--</span>
+                    </div>
+                    <div id="bit-score-divider" class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div id="bit-score-display" class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Bit Score</span>
+                        <span id="resBitScore" class="text-2xl font-bold text-black dark:text-white font-mono">--</span>
+                    </div>
+                    <div id="e-value-divider" class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div id="e-value-display" class="flex flex-col flex-grow">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">E-Value</span>
+                        <span id="resEValue"
+                            class="text-2xl font-bold text-emerald-500 font-mono drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">--</span>
+                    </div>
+                    <div id="stats-after-divider" class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Identity</span>
+                        <span id="resIdentity" class="text-2xl font-bold text-emerald-500 font-mono">--%</span>
+                    </div>
+                    <div id="positives-divider" class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div id="positives-display" class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Positives</span>
+                        <span id="resPositives" class="text-2xl font-bold text-emerald-500 font-mono">--%</span>
+                    </div>
+                    <div class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Length</span>
+                        <span id="resLength" class="text-2xl font-bold text-black dark:text-white font-mono">--</span>
+                    </div>
+                    <div class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Matches</span>
+                        <span id="resMatches" class="text-2xl font-bold text-emerald-500 font-mono">--</span>
+                    </div>
+                    <div class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Gaps</span>
+                        <span id="resGaps" class="text-2xl font-bold text-muted font-mono">--</span>
+                    </div>
+                </div>
+
+                <!-- Graphic Summary View -->
+                <div
+                    class="bg-gray-100 dark:bg-[#0b0b0b] border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden shadow-inner mb-6">
+
+                    <div
+                        class="px-5 py-3 border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#111] flex flex-wrap justify-between items-center gap-y-3">
+
+                        <h3 class="text-sm font-mono font-semibold text-gray-800 dark:text-gray-200">
+                            Graphic Summary
+                        </h3>
+
+                        <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs font-mono items-center">
+                            <span class="text-muted mr-2">Alignment Scores</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-yellow-400"></span>
+                                &lt;40</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-orange-400"></span>
+                                40-50</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500"></span>
+                                50-80</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500"></span>
+                                80-200</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-amber-800"></span>
+                                &gt;=200</span>
+                        </div>
+                    </div>
+
+                    <div id="graphicSummaryContainer"
+                        class="p-6 bg-white dark:bg-[#121212] overflow-x-auto text-sm text-center relative flex justify-center items-center min-h-[140px]">
+                        <!-- Rendered by JS -->
+                    </div>
+
+                </div>
+
+
+
+                <!-- Alignment Visualizer View -->
+                <div class="bg-gray-100 dark:bg-[#0a0a0a] border border-border rounded-xl overflow-hidden shadow-inner">
+                    <div
+                        class="px-5 py-3 border-b border-border bg-surface/50 flex flex-wrap justify-between items-center gap-y-3">
+                        <h3 class="text-sm font-mono text-black dark:text-gray-300 font-bold">Output Sequence Map
+                        </h3>
+                        <div id="sequenceLegend" class="flex flex-wrap gap-x-4 gap-y-2 text-xs font-mono">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <!-- Overflow area with monospaced font -->
+                    <div id="alignmentViewer"
+                        class="w-full overflow-x-auto font-mono text-sm text-gray-800 dark:text-gray-300 bg-gray-100 dark:bg-[#0a0a0a] min-h-[100px] p-6">
+                        <!-- Content rendered by JS -->
+                    </div>
+
+
+                </div>
+
+                <!-- Advanced Plotly Charts Area -->
+                <div id="chartContainer"
+                    class="bg-surface border border-border rounded-xl p-4 panel-shadow hidden mt-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                        <h3 class="text-sm font-semibold text-black dark:text-gray-200">Structural Alignment Path Matrix
+                        </h3>
+                        <div class="flex space-x-1 bg-background p-1 rounded-lg border border-border">
+                            <button onclick="window.switchChartTab && window.switchChartTab('table')"
+                                id="chart-tab-table"
+                                class="px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm">DP
+                                Table</button>
+                            <button onclick="window.switchChartTab && window.switchChartTab('heatmap')"
+                                id="chart-tab-heatmap"
+                                class="px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted hover:text-black dark:hover:text-white">Density
+                                Heatmap</button>
+                        </div>
+                    </div>
+
+                    <!-- Chart Content Area -->
+                    <div class="w-full bg-white dark:bg-[#0a0a0a] rounded-lg border border-border relative pb-4">
+
+                        <!-- TAB 1: DP Table -->
+                        <div id="chart-content-table" class="block w-full h-[500px] overflow-auto dp-table-scroll">
+                            <div id="dpTableContainer" class="w-full h-full">
+                                <!-- Dynamic Traceback Table Injected Here -->
+                            </div>
+                        </div>
+
+
+
+                        <!-- TAB 3: Advanced Plots (Heatmap) -->
+                        <div id="chart-content-heatmap" class="hidden w-full flex-col p-4">
+                            <div class="flex items-center gap-3 overflow-x-auto pb-2 justify-end">
+                                <button onclick="window._downloadPlot && window._downloadPlot()"
+                                    class="text-xs font-semibold bg-black text-white dark:bg-white dark:text-black px-3 py-1 rounded hover:opacity-80 transition-opacity flex items-center gap-1 flex-shrink-0"><i
+                                        class="fa-solid fa-download"></i> Plot</button>
+                            </div>
+                            <div id="plotlyMatrix" class="w-full h-[400px]"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Results Action Panel (New) -->
+                <div
+                    class="flex flex-col sm:flex-row justify-between items-center bg-surface border border-border rounded-xl p-4 gap-4">
+                    <div id="successMessage"
+                        class="text-xs text-emerald-600 dark:text-emerald-400 font-medium font-mono text-center sm:text-left leading-relaxed">
+                    </div>
+                    <div class="flex flex-wrap gap-2 justify-center sm:justify-end relative"
+                        id="exportDropdownContainer">
+                        <button onclick="window._downloadAlignmentFASTA && window._downloadAlignmentFASTA()"
+                            class="text-sm bg-black text-white dark:bg-white dark:text-black px-4 py-2.5 rounded-lg shadow-sm hover:opacity-80 transition-opacity font-medium flex items-center gap-2 whitespace-nowrap focus:outline-none border border-black dark:border-white">
+                            <i class="fa-solid fa-file-export"></i> FASTA
+                        </button>
+
+                        <!-- Dropdown Export Button -->
+                        <div class="relative">
+                            <button onclick="document.getElementById('exportMenu').classList.toggle('hidden')"
+                                class="text-sm bg-primary text-white px-5 py-2.5 rounded-lg shadow-lg hover:bg-primary/80 transition-colors font-medium flex items-center gap-2 whitespace-nowrap focus:outline-none">
+                                <i class="fa-solid fa-file-arrow-down"></i> Export Alignment <i
+                                    class="fa-solid fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <!-- Dropdown Popup Content -->
+                            <div id="exportMenu"
+                                class="hidden absolute right-0 bottom-full mb-2 w-48 bg-surface border border-border rounded-xl shadow-xl flex flex-col py-2 z-50 animate-slide-up">
+                                <button
+                                    onclick="window._downloadAlignmentTXT && window._downloadAlignmentTXT(); document.getElementById('exportMenu').classList.add('hidden')"
+                                    class="w-full text-left px-4 py-3 text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-3">
+                                    <i class="fa-solid fa-file-lines w-4"></i> As TXT (Report)
+                                </button>
+                                <button
+                                    onclick="window._downloadAlignmentCSV && window._downloadAlignmentCSV(); document.getElementById('exportMenu').classList.add('hidden')"
+                                    class="w-full text-left px-4 py-3 text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-3">
+                                    <i class="fa-solid fa-table w-4"></i> As CSV (Data)
+                                </button>
+                                <button
+                                    onclick="window._downloadAlignmentJSON && window._downloadAlignmentJSON(); document.getElementById('exportMenu').classList.add('hidden')"
+                                    class="w-full text-left px-4 py-3 text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-3">
+                                    <i class="fa-solid fa-code w-4"></i> As JSON
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Error/Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-6 left-6 z-50 flex flex-col gap-2"></div>
+
+    <!-- Core Dynamic DP Engines -->
+    <script type="module" src="dist/bundle.js"></script>
+</body>
+
+</html>

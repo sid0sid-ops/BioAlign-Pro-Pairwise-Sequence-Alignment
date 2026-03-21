@@ -1,0 +1,19 @@
+# Node modules — never commit
+node_modules/
+
+# Local dev logs
+*.log
+npm-debug.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Export server heatmap PNGs (local only)
+export/*.png
+
+# Dev-only scratch files
+fetch_matrices.mjs
+
+# NOTE: dist/bundle.js and css/tailwind.output.css MUST be committed for GitHub Pages
+# Do NOT add them here.
