@@ -12,6 +12,11 @@
  * using Jukes-Cantor (DNA/RNA) and Poisson (Protein) correction models.
  */
 
+function clampIdentity(identityFraction) {
+    if (!isFinite(identityFraction)) return 0;
+    return Math.max(0, Math.min(1, identityFraction));
+}
+
 /**
  * Calculates Jukes-Cantor evolutionary distance for nucleotide alignments.
  * Assuming equal base frequencies and uniform mutation rates.
@@ -20,14 +25,19 @@
  * @returns {number|string} The distance d, or 'Undefined' if sequence divergence is too high.
  */
 export function jukesCantorDistance(identityFraction) {
-    const p = 1.0 - identityFraction;
+    const id = clampIdentity(identityFraction);
+    const p = 1.0 - id;
 
-    // Theoretical limit: Jukes-Cantor is undefined if p >= 0.75 (75% divergence).
-    // In pairwise logic, that means identity <= 25%.
+    // Saturation threshold limit
     if (p >= 0.75) return '∞ (Saturation)';
 
-    const d = -0.75 * Math.log(1 - (4 / 3) * p);
-    return parseFloat(d.toFixed(4));
+    const inner = 1 - (4 / 3) * p;
+
+    // Prevent log(0)
+    if (inner <= 0) return '∞ (Saturation)';
+
+    const d = -0.75 * Math.log(inner);
+    return isFinite(d) ? parseFloat(d.toFixed(4)) : '∞ (Saturation)';
 }
 
 /**
@@ -38,11 +48,29 @@ export function jukesCantorDistance(identityFraction) {
  * @returns {number|string} The distance d.
  */
 export function poissonDistance(identityFraction) {
-    const p = Math.max(0, Math.min(0.9999, 1.0 - identityFraction));
+    const id = clampIdentity(identityFraction);
+    const p = 1.0 - id;
 
-    // Saturated sequences
-    if (p >= 1.0) return '∞ (Saturation)';
+    // Avoid log(0)
+    if (p >= 0.999999) return '∞ (Saturation)';
 
-    const d = -Math.log(1 - p);
-    return parseFloat(d.toFixed(4));
+    const inner = 1 - p;
+    if (inner <= 0) return '∞ (Saturation)';
+
+    const d = -Math.log(inner);
+    return isFinite(d) ? parseFloat(d.toFixed(4)) : '∞ (Saturation)';
+}
+
+export function computeEvolutionaryDistance(identityFraction, seqType) {
+    if (seqType === 'dna') {
+        return {
+            model: 'Jukes-Cantor',
+            distance: jukesCantorDistance(identityFraction)
+        };
+    } else {
+        return {
+            model: 'Poisson',
+            distance: poissonDistance(identityFraction)
+        };
+    }
 }

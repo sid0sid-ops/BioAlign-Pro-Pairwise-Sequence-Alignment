@@ -43,8 +43,8 @@ export function downloadAlignmentTXT(res) {
     const isProtein = res.sequence_type === 'protein';
     const typeStr = isProtein ? 'Protein' : 'DNA';
 
-    const gapOp = document.getElementById('paramGapOpen')?.value || '10.0';
-    const gapEx = document.getElementById('paramGapExtend')?.value || '0.5';
+    const gapOp = res.metadata?.gapOpen ?? 10.0;
+    const gapEx = res.metadata?.gapExtend ?? 0.5;
     let similarities = res.similarity_percent;
     if (similarities === null || similarities === undefined) {
         similarities = res.identity_percent; // fallback if DNA
@@ -89,7 +89,7 @@ ${res.additional_metrics.statsAvailable && res.additional_metrics.bit_score !== 
 # Type: ${typeStr}
 
 # Reproducibility Parameters
-# Algorithm: Needleman-Wunsch
+# Algorithm: ${algoName === 'needle' ? 'Needleman-Wunsch' : algoName === 'water' ? 'Smith-Waterman' : 'BLAST-like'}
 # Matrix: ${res.additional_metrics.matrixName}
 # Gap open: ${gapOp}
 # Gap extend: ${gapEx}
@@ -154,8 +154,8 @@ export function downloadAlignmentCSV(res) {
     const s2Name = window.currentS2Name || 'Sequence_2';
     const algoName = res.additional_metrics.algoType;
 
-    const gapOp = document.getElementById('paramGapOpen')?.value || '10.0';
-    const gapEx = document.getElementById('paramGapExtend')?.value || '0.5';
+    const gapOp = res.metadata?.gapOpen ?? 10.0;
+    const gapEx = res.metadata?.gapExtend ?? 0.5;
 
     let csvContent = `Metric,Value\n`;
     csvContent += `Algorithm,${algoName}\n`;
@@ -209,8 +209,8 @@ export function downloadAlignmentJSON(res) {
         },
         parameters: {
             matrix: res.additional_metrics.matrixName,
-            gap_open: parseFloat(document.getElementById('paramGapOpen')?.value || 10),
-            gap_extend: parseFloat(document.getElementById('paramGapExtend')?.value || 0.5)
+            gap_open: parseFloat(res.metadata?.gapOpen ?? 10),
+            gap_extend: parseFloat(res.metadata?.gapExtend ?? 0.5)
         },
         statistics: {
             score: res.alignment_score,

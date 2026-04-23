@@ -4,14 +4,8 @@
  * @pipelineLocation Post-computation tier. Runs immediately after the DP matrix is filled to generate human-readable strings.
  * @changeImpact Modifying the directional prioritization (e.g. preferring diagonal over horizontal on ties) will alter the alignment aesthetic and might break edge-case alignments.
  */
-
-/**
- * @file traceback.js
- * @description Reconstructs the optimal aligned sequence strings by walking backward
- *   through the TB (traceback) matrix produced by core/dpMatrix.js.
- */
-import { getMatrixScore } from './scoringMatrix.js?v=27';
-import { ALIGNMENT_TB } from './contracts.js?v=27';
+import { getMatrixScore } from './scoringMatrix.js';
+import { ALIGNMENT_TB } from './contracts.js';
 
 export function performTraceback(s1, s2, dp, matrixName, customMatch, customMismatch) {
     const { H, TB, n, m, isLocal, maxI, maxJ, gapMath } = dp;
@@ -33,7 +27,6 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
     // In our encoded bits: state 1=M, 2=Ix, 3=Iy
     // Because we use tbH from 1 to 3 in affine gap (0 is STOP)
     let currentState = (tbStart & 3);
-    if (currentState === ALIGNMENT_TB.STOP && !isLocal) currentState = ALIGNMENT_TB.DIAGONAL; // Fallback for global if 0 somehow
 
     // Pad trailing unaligned ends with gaps (from n,m to maxI,maxJ)
     if (!isLocal && gapMath === 'affine') {
@@ -75,6 +68,7 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
         if (gapMath === 'linear') {
             if (isLocal && tbH === ALIGNMENT_TB.STOP) break;
             if (tbH === ALIGNMENT_TB.DIAGONAL) {
+                if (i <= 0 || j <= 0) break; // Defensive bound check
                 const a = s1[i - 1]; const b = s2[j - 1];
                 aligned1 = a + aligned1; aligned2 = b + aligned2;
                 const score = getMatrixScore(a, b, matrixName, customMatch, customMismatch);
@@ -92,11 +86,17 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
             } else { break; }
         } else {
             // Affine Gap Logic with true matrix states M, Ix, Iy
+            // Bit Layout Documentation:
+            // Bits 0-1 (tbH): Best local/global direction (1=Diag, 2=Up, 3=Left, 0=Stop)
+            // Bit 2 (tbIx): Ix matrix state (0 or 1)
+            // Bit 3 (tbIy): Iy matrix state (0 or 1)
+            // Bits 4-5 (tbM): M matrix state (0=Diag, 1=Ix, 2=Iy)
             const tbIx = (tb >> 2) & 1;
             const tbIy = (tb >> 3) & 1;
             const tbM = (tb >> 4) & 3;
 
             if (currentState === ALIGNMENT_TB.DIAGONAL) {
+                if (i <= 0 || j <= 0) break; // Defensive bound check
                 const a = s1[i - 1]; const b = s2[j - 1];
                 aligned1 = a + aligned1; aligned2 = b + aligned2;
                 const score = getMatrixScore(a, b, matrixName, customMatch, customMismatch);

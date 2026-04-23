@@ -5,11 +5,6 @@
  * @changeImpact Changing enum values or default parameters here will cascade across the entire application, fundamentally altering how scores are parsed and UI modes are initialized.
  */
 
-/**
- * @file core/contracts.js
- * @description Central data contracts for BioAlign-Pro. 
- * Enforces strict object shapes between the Engine, UI, and Export layers.
- */
 
 /**
  * @typedef {Object} AlignmentRequest

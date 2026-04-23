@@ -5,12 +5,10 @@
  * @changeImpact Altering DOM innerHTML or textContent bindings here will break the display layers, preventing users from seeing their results.
  */
 
-/**
- * @file ui/resultsController.js
- * @description Controller responsible for hydrating the results section DOM and managing success states.
- * @pipeline Triggers heavily after alignmentEngine.js returns a successful Promise. Replaces placeholder text with stats, binds visualization renderers, and handles empty-case fallback components.
- */
-// Dynamic imports only
+// Static imports
+import * as viewerModule from '../visualization/alignmentViewer.js';
+import * as conservationModule from '../visualization/conservationRenderer.js';
+import * as heatmapModule from '../visualization/heatmapRenderer.js';
 
 export function updateResultUI(res) {
     const resultsPanel = document.getElementById('resultsSection');
@@ -79,32 +77,28 @@ export function updateResultUI(res) {
     }
 
 
-    // PHASE 2: Code Splitting (Dynamic Import Visualization Layer)
-    Promise.all([
-        import('../visualization/alignmentViewer.js'),
-        import('../visualization/conservationRenderer.js'),
-        import('../visualization/heatmapRenderer.js')
-    ]).then(([viewerModule, conservationModule, heatmapModule]) => {
+    // PHASE 2: Visualization Layer
+    try {
         viewerModule.renderSequenceMap(res);
         conservationModule.renderGraphicSummary('graphicSummaryContainer', res);
 
         el('chartContainer')?.classList.remove('hidden');
 
-        if (res.additional_metrics?.H) {
-            heatmapModule.renderDPTable(res);
-        } else {
-            const dpCon = el('dpTableContainer');
-            if (dpCon) dpCon.innerHTML =
-                `<div class="p-6 text-center text-muted font-sans text-sm">
-                   <i class="fa-solid fa-table text-2xl mb-2 block"></i>
-                   Sequences too large for table view (${res.additional_metrics?.n ?? '?'}×${res.additional_metrics?.m ?? '?'}).<br>
-                   Switch to <b>Heatmap</b> for native Canvas representation.
-                 </div>`;
-        }
+            if (res.dp?.H) {
+        heatmapModule.renderDPTable(res);
+    } else {
+        const dpCon = el('dpTableContainer');
+        if (dpCon) dpCon.innerHTML =
+            `<div class="p-6 text-center text-muted font-sans text-sm">
+            <i class="fa-solid fa-table text-2xl mb-2 block"></i>
+            Sequences too large for table view (${res.dp?.n ?? '?'}×${res.dp?.m ?? '?'}).<br>
+            Switch to <b>Heatmap</b> for native Canvas representation.
+            </div>`;
+    }
         heatmapModule.renderHeatmap(res);
-    }).catch(err => {
-        console.error("Failed to lazy load visualization chunks:", err);
-    });
+    } catch (err) {
+        console.error("Failed to load visualization:", err);
+    }
 
     resultsPanel.scrollIntoView({ behavior: 'smooth' });
 }

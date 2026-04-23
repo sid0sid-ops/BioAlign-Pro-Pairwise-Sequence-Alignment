@@ -4,13 +4,7 @@
  * @pipelineLocation Middle-tier utility. Wraps scoringMatricesData.js and serves it to algorithm matrices.
  * @changeImpact Changing the character lookup mapping (e.g. failing to properly map lower-case to upper-case) will result in score failures and immediate undefined results during matrix filling.
  */
-
-/**
- * @file core/scoringMatrix.js
- * @description Utility for calculating match/mismatch costs using standard or custom evolutionary matrices.
- * @pipeline Sits directly below the DP matrix builder. Exposes getMatrixScore() to evaluate the biological similarity of two residues (e.g. BLOSUM62 lookup or custom match/mismatch defaults).
- */
-import { parsedMatrices } from './scoringMatricesData.js?v=27';
+import { parsedMatrices } from './scoringMatricesData.js';
 
 const AMBIG_PROTEIN = { B: ['N', 'D'], Z: ['Q', 'E'], U: ['C'] };
 const AMBIG_DNA = {

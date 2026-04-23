@@ -6,17 +6,30 @@
  */
 
 export function downloadAlignmentFASTA(res) {
+    if (!res || !res.additional_metrics) {
+        alert("Invalid alignment result");
+        return;
+    }
+
     const s1Name = window.currentS1Name || 'Sequence_1';
     const s2Name = window.currentS2Name || 'Sequence_2';
-    const algoName = res.additional_metrics.algoType;
-
-    // Chunk sequence into 80 characters per line
-    const chunkString = (str, length) => str.match(new RegExp('.{1,' + length + '}', 'g')) || [];
-
-    const seq1Lines = chunkString(res.additional_metrics.alignedSeq1, 80).join('\n');
-    const seq2Lines = chunkString(res.additional_metrics.alignedSeq2, 80).join('\n');
+    
+    const cleanName = (name) => name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '').slice(0, 30);
+    const safeS1 = cleanName(s1Name);
+    const safeS2 = cleanName(s2Name);
 
     const m = res.additional_metrics || {};
+    const algoName = m.algoType || 'alignment';
+
+    // Chunk sequence into 80 characters per line safely
+    const chunkString = (str, length) => {
+        if (!str) return [];
+        return str.match(new RegExp('.{1,' + length + '}', 'g')) || [];
+    };
+
+    const seq1Lines = chunkString(m.alignedSeq1 || '', 80).join('\n');
+    const seq2Lines = chunkString(m.alignedSeq2 || '', 80).join('\n');
+
     const stats = res.stats || {};
     const eVal = stats.eValue !== undefined && stats.eValue !== null ? ` | E-Value: ${stats.eValue.toExponential(2)}` : '';
     const bScore = stats.bitScore !== undefined && stats.bitScore !== null ? ` | Bit-Score: ${stats.bitScore.toFixed(1)}` : '';
@@ -25,9 +38,9 @@ export function downloadAlignmentFASTA(res) {
 
     const headerBase = `[Algorithm: ${algoName.toUpperCase()}] [Matrix: ${res.metadata?.matrix || 'Unknown'}] [Score: ${stats.rawScore || res.alignment_score}]${bScore}${eVal}${gaps} [Len: ${res.alignment_length}] [Iden: ${res.identity_percent}%] [Sim: ${res.similarity_percent || res.identity_percent}%]`;
 
-    const fastaContent = `>${s1Name} ${headerBase}
+    const fastaContent = `>${safeS1} ${headerBase}
 ${seq1Lines}
->${s2Name} ${headerBase}
+>${safeS2} ${headerBase}
 ${seq2Lines}
 `;
 
@@ -37,7 +50,10 @@ ${seq2Lines}
     a.href = url;
 
     const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 8);
-    a.download = `alignment_${algoName}_${s1Name.substring(0, 20)}_vs_${s2Name.substring(0, 20)}_${timestamp}.fasta`;
+    const fileSafe = (name) => name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '').slice(0, 20);
+    a.download = `alignment_${algoName}_${fileSafe(s1Name)}_vs_${fileSafe(s2Name)}_${timestamp}.fasta`;
     a.click();
-    URL.revokeObjectURL(url);
+    
+    // Prevent memory leaks
+    setTimeout(() => URL.revokeObjectURL(url), 100);
 }

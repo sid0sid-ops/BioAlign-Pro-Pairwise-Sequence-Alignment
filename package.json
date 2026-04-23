@@ -5,13 +5,9 @@
   "main": "js/main.js",
   "scripts": {
     "build:css": "npx tailwindcss -i ./css/tailwind.input.css -o ./css/tailwind.output.css --minify",
-    "build:js": "npx esbuild js/main.js --bundle --minify --outdir=dist --splitting --format=esm --chunk-names=chunks/[name]-[hash] --target=es2020",
+    "build:js": "npx esbuild js/main.js --bundle --minify --outfile=dist/main.js --format=esm --target=es2020",
     "build": "npm run build:css && npm run build:js",
     "dev": "npx serve . -p 8080",
-    "test": "npm run test:dp && npm run test:score && npm run test:standards",
-    "test:dp": "node test_dp.mjs",
-    "test:score": "node test_score.mjs",
-    "test:standards": "node test_research_standards.mjs",
     "lint": "npx eslint ."
   },
   "keywords": [

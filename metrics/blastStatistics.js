@@ -72,7 +72,6 @@ export function getKAParams(matrixName, gapOpen, gapExtend) {
 }
 
 export function isStatsValid(gapMath, algoType, matrixName, gapOpen, gapExtend) {
-    if (gapMath !== 'linear') return { valid: false, reason: 'EMBOSS affine gap model — KA stats undefined' };
     if (algoType === 'global' || algoType === 'needleman_wunsch') return { valid: false, reason: 'Global alignment — KA stats not applicable' };
 
     const ka = getKAParams(matrixName, gapOpen, gapExtend);

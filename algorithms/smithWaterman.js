@@ -4,14 +4,8 @@
  * @pipelineLocation Lower-tier computational engine. Computes optimal sub-segment alignments on a background thread.
  * @changeImpact Changing the zero-floor conditions or max-score tracking will directly break local alignment detection, causing it to behave erroneously like global alignment.
  */
-
-/**
- * @file algorithms/smithWaterman.js
- * @description Wraps the core DP implementation to enforce Local alignment metrics.
- * @pipeline Called by alignmentEngine.js for 'Local' runs. Configures the DP matrix to floor negative scores to zero, ensuring optimal sub-region alignments without end-to-end penalization.
- */
-import { buildDPMatrix } from '../core/dpMatrix.js?v=27';
-import { performTraceback } from '../core/traceback.js?v=27';
+import { buildDPMatrix } from '../core/dpMatrix.js';
+import { performTraceback } from '../core/traceback.js';
 
 export function smithWaterman(s1, s2, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, onProgress = null) {
     const isLocal = true;
