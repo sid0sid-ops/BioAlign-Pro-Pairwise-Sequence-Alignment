@@ -47,3 +47,11 @@ Any future modifications to `dpMatrix.js` or `alignmentEngine.js` must strictly 
 1. NCBI/Linear configurations completely omit the 'Gap Extension' penalty.
 2. EMBOSS/Affine configurations necessitate absolute parity with EMBOSS traceback lengths.
 3. Smith-Waterman tracking cells strictly enforce `>` matching protocols to isolate true peak alignments natively.
+
+## 👨‍🔬 Authors & Acknowledgements
+
+**Siddharth Tripathi** - Lead Architect & Developer  
+*Student, M.Sc. Centre for Systems Biology & Bioinformatics, Panjab University.*
+
+**Acknowledgements:**  
+Special acknowledgement and gratitude to **Dr. Ashok Kumar** (Assistant Professor, Panjab University) for continued expert guidance, academic structure, and foundational instruction throughout the course of this biological engineering.
