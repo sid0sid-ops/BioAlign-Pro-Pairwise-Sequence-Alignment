@@ -1,4 +1,4 @@
-﻿/* BioAlign-Pro style.css - YouTube-inspired theme */
+/* BioAlign-Pro style.css */
 
 /* Safety */
 .hidden {
@@ -6,7 +6,7 @@
 }
 
 /* ==========================================================
-   LIGHT mode - YouTube light palette
+   LIGHT mode 
    ========================================================== */
 :root {
     --bg: #ffffff;
@@ -44,7 +44,7 @@
 }
 
 /* ==========================================================
-   DARK mode - YouTube dark palette
+   DARK mode 
    ========================================================== */
 .dark {
     --bg: #0f0f0f;
@@ -83,6 +83,10 @@ body {
     padding: 0;
     min-height: 100dvh;
     overflow-x: hidden;
+}
+
+h1, h2, h3 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
 }
 
 /* Scrollbars */
@@ -307,7 +311,7 @@ body {
 }
 
 /* ==========================================================
-   YouTube-style range slider
+   Range slider
    ========================================================== */
 /* range inputs: use native rendering + accent-color for the fill track */
 input[type="range"].range-slider {
@@ -377,7 +381,7 @@ input[type="range"].range-slider::-moz-range-thumb:hover {
 
 
 /* ==========================================================
-   YouTube chip toggle (Protein / DNA toggle)
+  Chip toggle (Protein / DNA toggle)
    ========================================================== */
 .yt-chip {
     display: inline-flex;
@@ -418,6 +422,12 @@ section+section {
    DP Table – vivid, eye-catching custom scrollbar
    ========================================================== */
 .dp-table-scroll {
+    /* ✅ SCROLL ENABLE */
+    max-height: 500px;   
+    max-width: 100%;
+
+    overflow: auto;      /* 🔥 main  */
+    display: block;
     scrollbar-width: thin;
     scrollbar-color: #0d9488 rgba(13, 148, 136, 0.12);
 }
@@ -450,6 +460,23 @@ section+section {
 
 .dp-table-scroll::-webkit-scrollbar-corner {
     background: rgba(13, 148, 136, 0.08);
+}
+.dp-table-scroll th {
+    position: sticky;
+    top: 0;
+    background: #111;   /* match your theme */
+    z-index: 2;
+}
+
+.dp-table-scroll td:first-child,
+.dp-table-scroll th:first-child {
+    position: sticky;
+    left: 0;
+    background: #111;
+    z-index: 1;
+}
+.dp-table-scroll {
+    scroll-behavior: smooth;
 }
 
 /* ==========================================================
@@ -490,4 +517,47 @@ section+section {
 
 .dp-left {
     background: rgba(244, 67, 54, 0.1);
+}
+
+/* ==========================================================
+   Premium Glass Cards (.card-soft)
+   ========================================================== */
+.card-soft {
+    backdrop-filter: blur(12px);
+    background: linear-gradient(
+        145deg,
+        rgba(255,255,255,0.05),
+        rgba(255,255,255,0.02)
+    );
+}
+
+.dark .card-soft {
+    background: linear-gradient(
+        145deg,
+        rgba(255,255,255,0.04),
+        rgba(255,255,255,0.01)
+    );
+}
+
+.card-soft::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 32px;
+    padding: 1px;
+    background: linear-gradient(120deg, transparent, var(--glow-color, rgba(239, 68, 68, 0.4)), transparent);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity .3s;
+}
+
+.card-soft:hover::before {
+    opacity: 1;
 }

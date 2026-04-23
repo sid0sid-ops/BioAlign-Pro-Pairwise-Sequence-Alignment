@@ -5,20 +5,15 @@
  * @changeImpact Modifying worker instantiation or message passing logic here will disrupt the asynchronous non-blocking UI flow and could cause race conditions.
  */
 
-/**
- * @file core/alignmentEngine.js
- * @description Central coordinator for dispatching DNA/Protein sequence alignments.
- * @pipeline Sits between the UI layer (which calls runAlignment) and the algorithm/metrics layers. Converts raw user input into robust worker requests or fallback synchronous computations, returning standardized Contract payloads.
- */
-import { needlemanWunsch } from '../algorithms/needlemanWunsch.js?v=27';
-import { smithWaterman } from '../algorithms/smithWaterman.js?v=27';
-import { blastSeedExtend } from '../algorithms/blastSeedExtend.js?v=27';
-import { calculateIdentity } from '../metrics/identityCalculator.js?v=27';
-import { calculateSimilarity } from '../metrics/similarityCalculator.js?v=27';
-import { isStatsValid, calculateStatistics } from '../metrics/blastStatistics.js?v=27';
-import { determineMode } from '../ui/modeConfigs.js?v=27';
-import { validateAlignment } from './alignmentValidator.js?v=27';
-import { jukesCantorDistance, poissonDistance } from '../metrics/phylogenetics.js?v=27';
+import { needlemanWunsch } from '../algorithms/needlemanWunsch.js';
+import { smithWaterman } from '../algorithms/smithWaterman.js';
+import { blastSeedExtend } from '../algorithms/blastSeedExtend.js';
+import { calculateIdentity } from '../metrics/identityCalculator.js';
+import { calculateSimilarity } from '../metrics/similarityCalculator.js';
+import { isStatsValid, calculateStatistics } from '../metrics/blastStatistics.js';
+import { determineMode } from '../ui/modeConfigs.js';
+import { validateAlignment } from './alignmentValidator.js';
+import { jukesCantorDistance, poissonDistance } from '../metrics/phylogenetics.js';
 
 const VISUAL_LIMIT = 160_000;
 
@@ -73,7 +68,7 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
     let bitScoreVal = null;
     let eValueVal = null;
 
-    if (isLocal) {
+    if (isLocal && gapMath === 'linear') {
         const sv = isStatsValid(gapMath, algoType, matrixName, openNum, exNum);
         statsAvailable = sv.valid;
         statsReason = sv.reason || null;
@@ -170,7 +165,7 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
 }
 
 export const runAlignment = (seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh) => {
-    const worker = _getWorker();
+    const worker = null;
 
     if (worker) {
         return new Promise((resolve, reject) => {

@@ -1,11 +1,4 @@
 /**
- * @file js/main.js
- * @description The primary Single Page Application (SPA) entry point. Bootstraps controllers, binds DOM events, and manages application state.
- * @pipelineLocation Top-level controller. Directly interfaces with the user's browser interactions.
- * @changeImpact Altering event listeners or initialization logic here will sever the connection between the UI buttons and the underlying alignment engine.
- */
-
-/**
  * ================================================================
  * @file main.js
  * @location Root Controller Layer
@@ -63,48 +56,31 @@ import {
     handleFileDrop,
     handleFileUpload,
     fetchNCBI,
-    syncWordSizeUI,
-    syncCustomScoreUI,
-    applyModeDefaults,
     getRawSequence,
     getActiveTab,
     validateSequence,
     showToast,
-    seqType,
-    currentAlgo
-} from '../ui/inputController.js?v=27';
+    getCurrentAlgo,
+    getSeqType
+} from '../ui/inputController.js';
 
-import { updateResultUI } from '../ui/resultsController.js?v=27';
-import { runAlignment } from '../core/alignmentEngine.js?v=27';
-import { setupMatrixUI } from '../visualization/heatmapRenderer.js?v=27';
-import { downloadAlignmentTXT, downloadAlignmentCSV, downloadAlignmentJSON } from '../export/embossFormatter.js?v=27';
-import { downloadAlignmentFASTA } from '../export/fastaExport.js?v=27';
+import { initUIController } from '../ui/uiController.js';
+import { getState } from '../ui/state.js';
+
+import { updateResultUI } from '../ui/resultsController.js';
+import { setupMatrixUI } from '../visualization/heatmapRenderer.js';
+import { downloadAlignmentTXT, downloadAlignmentCSV, downloadAlignmentJSON } from '../export/embossFormatter.js';
+import { downloadAlignmentFASTA } from '../export/fastaExport.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Expose necessary functions to window for index.html inline onclick handlers
-    window.startAlignmentMode = startAlignmentMode;
-    window.returnToLanding = returnToLanding;
-    window.setSequenceType = setSequenceType;
-    window.toggleAdvancedOptions = toggleAdvancedOptions;
-    window.toggleTheme = toggleTheme;
-    window.clearSeq = clearSeq;
-    window.loadExample = loadExample;
-    window.switchTab = switchTab;
-    window.handleFileDrop = handleFileDrop;
-    window.handleFileUpload = handleFileUpload;
-    window.fetchNCBI = fetchNCBI;
-    window.syncWordSizeUI = syncWordSizeUI;
-    window.syncCustomScoreUI = syncCustomScoreUI;
-    window.applyModeDefaults = applyModeDefaults;
+    // uiController.js owns all event wiring — no window.* shims needed for UI interactions.
+    // Only export download helpers that are triggered from result-panel buttons in HTML.
+    initUIController();
 
     window._downloadAlignmentTXT = () => { if (window.lastAlignmentResult) downloadAlignmentTXT(window.lastAlignmentResult); };
     window._downloadAlignmentCSV = () => { if (window.lastAlignmentResult) downloadAlignmentCSV(window.lastAlignmentResult); };
     window._downloadAlignmentJSON = () => { if (window.lastAlignmentResult) downloadAlignmentJSON(window.lastAlignmentResult); };
     window._downloadAlignmentFASTA = () => { if (window.lastAlignmentResult) downloadAlignmentFASTA(window.lastAlignmentResult); };
-    window.runBenchmarkSuite = async () => {
-        const { runBenchmarkSuite } = await import('../ui/validate.js?v=28');
-        runBenchmarkSuite();
-    };
     window._downloadPlot = () => {
         const canvas = document.getElementById('pureCanvasHeatmap');
         if (canvas) {
@@ -125,9 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Setup listeners that might not be inline
+    // setupMatrixUI() is now handled by the state-driven render() in uiController.js. -> Actually it was missing!
     setupMatrixUI();
-    setSequenceType('protein'); // default
 
     // PHASE 3: SPA Hash Router
     function handleRoute() {
@@ -159,11 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Auto-fetch if user forgot to click fetch
             if (t1 === 'ncbi' && !(document.getElementById('seq1-ext')?.value)) {
                 const sv = document.getElementById('ncbi-search-1')?.value?.trim();
-                if (sv && sv.length >= 4) await window.fetchNCBI(1);
+                if (sv && sv.length >= 4) await fetchNCBI(1);
             }
             if (t2 === 'ncbi' && !(document.getElementById('seq2-ext')?.value)) {
                 const sv = document.getElementById('ncbi-search-2')?.value?.trim();
-                if (sv && sv.length >= 4) await window.fetchNCBI(2);
+                if (sv && sv.length >= 4) await fetchNCBI(2);
             }
 
             const s1 = getRawSequence(1);
@@ -193,17 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (title1) title1.innerText = n1;
             if (title2) title2.innerText = n2;
 
-            const gapMath = document.getElementById('paramGapMath')?.value || 'affine';
-            const gapOp = parseFloat(document.getElementById('paramGapOpen')?.value || 10);
-            const gapEx = parseFloat(document.getElementById('paramGapExtend')?.value || 0.5);
-            const matrixName = document.getElementById('paramMatrix')?.value || 'BLOSUM62';
-            const dbSize = parseInt(document.getElementById('paramDbSize')?.value, 10) || null;
-            const expectThresh = parseFloat(document.getElementById('paramExpectThreshold')?.value || 0.05);
+            const appState = getState();
+            const gapMath = appState.gapMode;
+            const gapOp = appState.parameters.gapOpen;
+            const gapEx = appState.parameters.gapExtend;
+            const matrixName = appState.parameters.matrix;
+            const dbSize = appState.parameters.dbSize;
+            const expectThresh = appState.parameters.expectThreshold;
 
             let customMatch, customMismatch;
-            if (gapMath === 'linear' && seqType === 'dna') {
-                customMatch = parseFloat(document.getElementById('paramMatchScore')?.value || 2);
-                customMismatch = parseFloat(document.getElementById('paramMismatchScore')?.value || -3);
+            if (appState.sequenceType === 'dna' && appState.scoringMode === 'CUSTOM') {
+                customMatch = appState.parameters.matchScore;
+                customMismatch = appState.parameters.mismatchPenalty;
             }
 
             if (s1.length > MAX_SEQ_LENGTH || s2.length > MAX_SEQ_LENGTH) {
@@ -211,10 +187,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const cacheKey = `${s1}|${s2}|${matrixName}|${gapOp}|${gapEx}|${currentAlgo}|${gapMath}|${seqType}|${expectThresh}`;
+            // Resolve algorithm type via getter, fall back to URL hash if undefined.
+            // Ensures the cache key and the engine always receive the correct algo string.
+            let resolvedAlgo = getCurrentAlgo();
+            if (!resolvedAlgo) {
+                const h = window.location.hash;
+                if (h.includes('global')) resolvedAlgo = 'global';
+                else if (h.includes('local')) resolvedAlgo = 'local';
+                else if (h.includes('blast')) resolvedAlgo = 'blast';
+                else resolvedAlgo = 'global'; // safe fallback
+                console.warn(`[BioAlign] currentAlgo was falsy — resolved from hash: "${resolvedAlgo}"`);
+            }
+
+            const cacheKey = `${s1}|${s2}|${matrixName}|${gapOp}|${gapEx}|${resolvedAlgo}|${gapMath}|${getSeqType()}|${expectThresh}`;
 
             if (_alignmentCache.has(cacheKey)) {
                 window.lastAlignmentResult = _alignmentCache.get(cacheKey);
+                document.getElementById('recomputeMsg')?.classList.add('hidden');
                 updateResultUI(window.lastAlignmentResult);
                 showToast("Result from cache (instant)", "success");
                 return;
@@ -229,27 +218,74 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...`;
 
             try {
-                // Call robust engine returning standardized JSON
-                const result = await runAlignment(s1, s2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, currentAlgo, dbSize, expectThresh);
+                // Offload Dynamic Programming to Web Worker to prevent UI Freeze
+                const worker = new Worker(new URL('../core/alignmentWorker.js', import.meta.url), { type: 'module' });
+                const jobId = Date.now();
+
+                const result = await new Promise((resolve, reject) => {
+                    worker.onmessage = (e) => {
+                        if (e.data.id !== jobId) return;
+
+                        if (e.data.type === 'progress') {
+                            const loaderObj = document.getElementById('loadingOverlay');
+                            if (loaderObj) {
+                                // Currently loader holds a spinner, updating text could be placed here
+                                // console.log(`Progress: ${e.data.stage}... ${e.data.percent}%`);
+                            }
+                            return;
+                        }
+
+                        if (e.data.success) {
+                            resolve(e.data.result);
+                        } else {
+                            reject(new Error(e.data.error || 'Worker error'));
+                        }
+                        worker.terminate();
+                    };
+
+                    worker.onerror = (err) => {
+                        reject(err);
+                        worker.terminate();
+                    };
+
+                    worker.postMessage({
+                        id: jobId,
+                        seq1: s1, seq2: s2, seqType: getSeqType(),
+                        gapMath, gapOp, gapEx, matrixName,
+                        customMatch, customMismatch,
+                        algoType: resolvedAlgo,
+                        databaseSize: dbSize, expectThresh
+                    });
+                });
 
                 window.lastAlignmentResult = result;
                 _alignmentCache.set(cacheKey, result);
 
                 // Route structured JSON to generic UI consumer
+                document.getElementById('recomputeMsg')?.classList.add('hidden');
                 updateResultUI(result);
 
-                showToast("Alignment complete", "success");
+                showToast(`${resolvedAlgo.toUpperCase()} alignment complete`, "success");
             } catch (err) {
                 console.error(err);
-                if (err.message && err.message.includes("No significant similarity")) {
-                    showToast(err.message, "warning"); // NCBI style yellow warning for E-value cutoff
+
+                // 🔥 Only show error if alignment never succeeded
+                if (!window.lastAlignmentResult) {
+                    const errorTxt = (err.message && err.message.trim() !== '')
+                        ? err.message
+                        : (err.toString() !== '[object Object]'
+                            ? err.toString()
+                            : 'Unknown computation error.');
+
+                    showToast("Alignment failed: " + errorTxt, "error");
+
+                    const rs = document.getElementById('resultsSection');
+                    if (rs) {
+                        rs.classList.add('hidden');
+                        rs.classList.remove('flex');
+                    }
                 } else {
-                    showToast("Alignment failed: " + err.message, "error");
-                }
-                const rs = document.getElementById('resultsSection');
-                if (rs) {
-                    rs.classList.add('hidden');
-                    rs.classList.remove('flex');
+                    console.warn("UI error after successful alignment");
                 }
             } finally {
                 if (loader) loader.classList.add('hidden');
@@ -261,27 +297,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-/**
- * Phase 0: Sample Sequence Injection
- */
-document.addEventListener('DOMContentLoaded', () => {
-    const btnProtein = document.getElementById('loadProteinSampleBtn');
-    if (btnProtein) {
-        btnProtein.addEventListener('click', () => {
-            document.getElementById('seqType').value = 'protein';
-            document.getElementById('seq1').value = ">Hemoglobin_Alpha_Human\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR";
-            document.getElementById('seq2').value = ">Hemoglobin_Beta_Human\nVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH";
-        });
-    }
-
-    const btnDna = document.getElementById('loadDnaSampleBtn');
-    if (btnDna) {
-        btnDna.addEventListener('click', () => {
-            document.getElementById('seqType').value = 'dna';
-            document.getElementById('seq1').value = ">Ecoli_16S_rRNA_Fragment\nTGCCTAACACATGCAAGTCGAACGGTAACAGGAAGCAGCTTGCTGCTTTGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAACTGCCTGATGGAGGGGGATAACTACTGGAAACGGTAGCTAATACCGCATAACGTCGCAAGACCAAAGAGGGGGACCTTCGGGCCTCTTGCCATCGGATGTGCCCAGATGGGATTAGCTAGTAGGTGGGGTAACGGCTCACCTAGGCGACGATCCCTAGCTGGTCTGAGAGGATGACCAGCCACACTGGAACTGAG";
-            document.getElementById('seq2').value = ">Salmonella_16S_rRNA_Fragment\nTGCCTAACACATGCAAGTCGAACGGTAACAGGAAGCAGCTTGCTGCTTCGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAACTGCCTGATGGAGGGGGATAACTACTGGAAACGGTAGCTAATACCGCATAACGTCGCAAGACCAAAGAGGGGGACCTTCGGGCCTCTTGCCATCGGATGTGCCCAGATGGGATTAGCTTGTTGGTGAGGTAACGGCTCACCAAGGCGACGATCCCTAGCTGGTCTGAGAGGATGACCAGCCACACTGGAACTGAG";
-        });
-    }
-});
-

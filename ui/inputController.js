@@ -10,14 +10,28 @@
  * @description User interaction logic, managing sliders, parameters, textareas, and API drops.
  * @pipeline Handles all non-computation DOM events up until the user hits the Compute button. Manages DNA vs Protein states, fetches NCBI sequences asynchronously via eutils, and toggles parameters.
  */
+import { updateState, getState } from './state.js';
+
 export const PROTEIN_CHARS = /^[ACDEFGHIKLMNPQRSTVWYBZXUO*-]+$/i;
 export const DNA_RNA_CHARS = /^[ACGTURYMKSWBDHVN-]+$/i;
 
-export let currentAlgo = 'global';
-export let seqType = 'protein';
+/** @returns {string} The currently active alignment algorithm. */
+export const getCurrentAlgo = () => getState().alignmentType;
+/** @param {string} val - 'global' | 'local' | 'blast' */
+export const setCurrentAlgo = (val) => { updateState('SET_ALIGNMENT_TYPE', val); };
+
+/** @returns {string} The currently active sequence type. */
+export const getSeqType = () => getState().sequenceType;
+/** @param {string} val - 'protein' | 'dna' */
+export const setSeqType = (val) => { updateState('SET_SEQUENCE_TYPE', val); };
+
+// Compatibility shims — read-only views used by legacy callsites that imported
+// the plain bindings directly. Use the getters/setters for all new code.
+export const currentAlgo = getCurrentAlgo();
+export const seqType = getSeqType();
 
 export function startAlignmentMode(mode) {
-    currentAlgo = mode;
+    setCurrentAlgo(mode);
     const landing = document.getElementById('landingStage');
     const workspace = document.getElementById('workspaceStage');
 
@@ -39,23 +53,6 @@ export function startAlignmentMode(mode) {
             title.innerHTML = `Local Alignment <span class="px-2 py-1 bg-surface border border-border rounded text-xs font-mono text-emerald-400 font-normal whitespace-normal w-max max-w-full leading-tight">Smith-Waterman</span>`;
         } else if (mode === 'blast') {
             title.innerHTML = `BLAST-like Search <span class="px-2 py-1 bg-surface border border-border rounded text-xs font-mono text-blue-500 font-normal whitespace-normal w-max max-w-full leading-tight">Heuristic</span>`;
-        }
-    }
-
-    const gapMathSelect = document.getElementById('paramGapMath');
-    if (gapMathSelect) {
-        if (mode === 'blast') {
-            gapMathSelect.value = 'linear';
-            gapMathSelect.disabled = true;
-            gapMathSelect.title = "BLAST uses linear gap math automatically";
-            syncWordSizeUI('linear');
-        } else {
-            if (gapMathSelect.disabled) {
-                gapMathSelect.value = 'affine';
-                gapMathSelect.disabled = false;
-                gapMathSelect.title = "";
-                syncWordSizeUI('affine');
-            }
         }
     }
 }
@@ -86,8 +83,7 @@ export function sanitizeSequence(raw) {
         .split('\n')
         .filter(l => !l.trim().startsWith('>'))
         .map(l => l
-            .replace(/\d+/g, '')
-            .replace(/[\s\t\r\u00A0\u200B]/g, '')
+            .replace(/[^A-Za-z*-]/g, '')  // strip digits, symbols, whitespace — keep valid IUPAC + gap chars
         )
         .join('')
         .toUpperCase();
@@ -111,10 +107,10 @@ export function getRawSequence(seqNum) {
 
 export function validateSequence(seq, seqNum) {
     if (!seq) { showToast(`Sequence ${seqNum} is empty.`, 'error'); return false; }
-    const pattern = seqType === 'dna' ? DNA_RNA_CHARS : PROTEIN_CHARS;
-    const clean = seq.replace(/^>[^\n]*\n?/, '').replace(/\s/g, '');
+    const pattern = getSeqType() === 'dna' ? DNA_RNA_CHARS : PROTEIN_CHARS;
+    const clean = seq;
     if (!pattern.test(clean)) {
-        const expected = seqType === 'dna' ? 'DNA/RNA (ACGTURYMKSWBDHVN)' : 'Protein (ACDEFGHIKLMNPQRSTVWY...)';
+        const expected = getSeqType() === 'dna' ? 'Nucleotide (ACGTURYMKSWBDHVN)' : 'Protein (ACDEFGHIKLMNPQRSTVWY...)';
         showToast(`Sequence ${seqNum}: Invalid characters for ${expected} mode.`, 'error');
         return false;
     }
@@ -122,143 +118,34 @@ export function validateSequence(seq, seqNum) {
 }
 
 export function setSequenceType(type) {
-    seqType = type;
+    // NOTE: state is already updated by the caller (uiController). This function
+    // is PURELY for visual DOM updates: button classes and textarea placeholders.
     const dnaBtn = document.getElementById('typeDnaBtn');
     const protBtn = document.getElementById('typeProteinBtn');
-    const dnaGrp = document.getElementById('dnaMatrices');
-    const protGrp = document.getElementById('proteinMatrices');
-    const mtxSelect = document.getElementById('paramMatrix');
 
     if (type === 'dna') {
         if (dnaBtn) dnaBtn.className = "px-6 py-2 rounded-full text-sm font-medium transition-colors bg-black text-white dark:bg-white dark:text-black shadow-md";
         if (protBtn) protBtn.className = "px-6 py-2 rounded-full text-sm font-medium transition-colors text-muted hover:text-black dark:hover:text-white";
-        if (dnaGrp) { dnaGrp.disabled = false; dnaGrp.classList.remove('hidden'); }
-        if (protGrp) { protGrp.disabled = true; protGrp.classList.add('hidden'); }
-        if (mtxSelect) mtxSelect.value = "DNAFULL";
 
         const s1 = document.getElementById('seq1');
         const s2 = document.getElementById('seq2');
-        if (s1) s1.placeholder = "Paste DNA / RNA sequence (e.g., AGTCGATCGTAT...)";
-        if (s2) s2.placeholder = "Paste DNA / RNA sequence (e.g., AGTCGATCGTAT...)";
-        const csg = document.getElementById('customScoreGroup');
-        if (csg) csg.classList.remove('hidden');
-        syncCustomScoreUI(document.getElementById('paramGapMath')?.value || 'affine');
+        if (s1) s1.placeholder = "Paste your Nucleotide sequence (FASTA or raw)";
+        if (s2) s2.placeholder = "Paste your Nucleotide sequence (FASTA or raw)";
     } else {
         if (protBtn) protBtn.className = "px-6 py-2 rounded-full text-sm font-medium transition-colors bg-black text-white dark:bg-white dark:text-black shadow-md";
         if (dnaBtn) dnaBtn.className = "px-6 py-2 rounded-full text-sm font-medium transition-colors text-muted hover:text-black dark:hover:text-white";
-        if (dnaGrp) { dnaGrp.disabled = true; dnaGrp.classList.add('hidden'); }
-        if (protGrp) { protGrp.disabled = false; protGrp.classList.remove('hidden'); }
-        if (mtxSelect) mtxSelect.value = "BLOSUM62";
 
         const s1 = document.getElementById('seq1');
         const s2 = document.getElementById('seq2');
-        if (s1) s1.placeholder = "Paste Protein sequence (e.g., MVLSPADKTN...)";
-        if (s2) s2.placeholder = "Paste Protein sequence (e.g., MVLSPADKTN...)";
-        syncCustomScoreUI('emboss-protein');
+        if (s1) s1.placeholder = "Paste your protein sequence (FASTA or raw)";
+        if (s2) s2.placeholder = "Paste your protein sequence (FASTA or raw)";
     }
 }
 
-export function syncWordSizeUI(gapMathValue) {
-    const group = document.getElementById('ncbiWordSizeGroup');
-    if (!group) return;
-    if (gapMathValue === 'linear') {
-        group.classList.remove('hidden');
-    } else {
-        group.classList.add('hidden');
-    }
-    syncCustomScoreUI(gapMathValue);
-}
-
-/**
- * applyModeDefaults — reads current seqType + currentAlgo + gapMath
- * and pushes the published EMBOSS / NCBI default gap parameters into the UI sliders.
- *
- * Mode → defaults mapping (from modeConfigs.js):
- *   protein_needle  : gapOpen=10, gapExtend=0.5  (Affine)
- *   protein_water   : gapOpen=10, gapExtend=0.5  (Affine)
- *   protein_ncbi_global : gapOpen=11, gapExtend=1.0 (Linear)
- *   blastp_like     : gapOpen=11, gapExtend=1.0  (Linear)
- *   dna_needle      : gapOpen=10, gapExtend=0.5  (Affine)
- *   dna_water       : gapOpen=10, gapExtend=0.5  (Affine)
- *   blastn          : gapOpen=5,  gapExtend=2.0  (Linear/BLAST)
- */
-export function applyModeDefaults() {
-    const gapMathEl = document.getElementById('paramGapMath');
-    const gapOpenEl = document.getElementById('paramGapOpen');
-    const gapExtEl = document.getElementById('paramGapExtend');
-    const gapOpenValEl = document.getElementById('gapOpenVal');
-    const gapExtValEl = document.getElementById('gapExtVal');
-
-    if (!gapMathEl) return;
-    const gapMath = gapMathEl.value;
-
-    // Determine which defaults apply based on sequence type + algo + gap model
-    let defaults;
-
-    const isLocal = (currentAlgo === 'local' || currentAlgo === 'blast');
-    const isBlastn = (currentAlgo === 'blast' && seqType === 'dna');
-    const isBlastp = (currentAlgo === 'blast' && seqType === 'protein');
-
-    if (gapMath === 'linear') {
-        if (isBlastn || (isLocal && seqType === 'dna')) {
-            defaults = { gapOpen: 5, gapExtend: 2.0 };       // BLASTN
-        } else {
-            defaults = { gapOpen: 11, gapExtend: 1.0 };      // NCBI Protein linear
-        }
-    } else {
-        // Affine — same defaults for both global/local and DNA/protein
-        defaults = { gapOpen: 10, gapExtend: 0.5 };          // EMBOSS Gotoh affine
-    }
-
-    if (gapOpenEl) {
-        gapOpenEl.value = defaults.gapOpen;
-        if (gapOpenValEl) gapOpenValEl.innerText = defaults.gapOpen;
-        // Sync the range slider background fill
-        const max = parseFloat(gapOpenEl.max) || 30;
-        const pct = ((defaults.gapOpen / max) * 100).toFixed(1);
-        gapOpenEl.style.background = `linear-gradient(to right,var(--primary) ${pct}%,var(--chip-bg) ${pct}%)`;
-    }
-    if (gapExtEl) {
-        gapExtEl.value = defaults.gapExtend;
-        if (gapExtValEl) gapExtValEl.innerText = defaults.gapExtend;
-        const max = parseFloat(gapExtEl.max) || 5;
-        const pct = ((defaults.gapExtend / max) * 100).toFixed(1);
-        gapExtEl.style.background = `linear-gradient(to right,var(--primary) ${pct}%,var(--chip-bg) ${pct}%)`;
-    }
-
-    const wordSizeEl = document.getElementById('paramWordSize');
-    const expectEl = document.getElementById('paramExpectThreshold');
-    if (wordSizeEl) {
-        if (isBlastn || (isLocal && seqType === 'dna')) wordSizeEl.value = 11;
-        else if (isBlastp || (isLocal && seqType === 'protein')) wordSizeEl.value = 3;
-    }
-    if (expectEl) {
-        expectEl.value = 0.05; // Standard NCBI BLAST E-value cutoff
-    }
-
-    // Also sync the downstream word-size / custom score panels
-    syncWordSizeUI(gapMath);
-}
-
-export function syncCustomScoreUI(gapMathValue) {
-    const csg = document.getElementById('customScoreGroup');
-    const mEl = document.getElementById('paramMatchScore');
-    const mmEl = document.getElementById('paramMismatchScore');
-    if (!csg) return;
-
-    const isNcbi = (gapMathValue === 'linear');
-    const isDna = (seqType === 'dna');
-
-    if (isNcbi && isDna) {
-        csg.classList.remove('hidden');
-        if (mEl && (mEl.value === '' || mEl.value === '0')) mEl.value = 2;
-        if (mmEl && (mmEl.value === '' || mmEl.value === '0')) mmEl.value = -3;
-    } else {
-        csg.classList.add('hidden');
-        if (mEl) mEl.value = 1;
-        if (mmEl) mmEl.value = -3;
-    }
-}
+// These functions have been deprecated and removed, as parameter sync is handled by uiController
+export function applyModeDefaults() { }
+export function syncWordSizeUI() { }
+export function syncCustomScoreUI() { }
 
 export function clearSeq(seqNum) {
     const el = document.getElementById('seq' + seqNum);
@@ -270,12 +157,14 @@ export function clearSeq(seqNum) {
 
 export function loadExample(seqNum) {
     let ex = "";
-    if (seqType === 'dna') {
-        ex = seqNum === 1 ? "AAGCTTAAGGCCATGCTAGCTA" : "AAGCTTCGCCATGCATGCTA";
+    if (getSeqType() === 'dna') {
+        ex = seqNum === 1
+            ? ">Human_TP53_Exon4_partial\nATGGACTATTCCTGAGTCTCCAGGTGAAATAGTGCCAACAATAAAAACTATCCCCCAGGC\nCCTCTCATCTAATCCTGTGAAAACCCAGGTCCAGGAGGCTTTCCAACTCCCACATCAGGC\nAACTCAAAACCTGGACCCTGCTTCTA"
+            : ">Mouse_TP53_Exon4_partial\nATGGATTATTCCTGAGTCCCAAGGTGAAATAGTGCGAACAATGAAGACTATCCCCCAAGC\nCCTCTCACCTAATCCCGTGAAAACCCAGGTCCAGGAGGCTTTCCAACTCCCACACCAGGC\nAACTCAAAACATGGACTCTTCTTCTA";
     } else {
         ex = seqNum === 1
-            ? "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHF"
-            : "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDL";
+            ? ">sp|P69905|HBA_HUMAN Hemoglobin subunit alpha\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHG\nKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTP\nAVHASLDKFLASVSTVLTSKYR"
+            : ">sp|P68871|HBB_HUMAN Hemoglobin subunit beta\nMVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPK\nVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFG\nKEFTPPVQAAYQKVVAGVANALAHKYH";
     }
     const el = document.getElementById('seq' + seqNum);
     if (el) el.value = ex;
@@ -349,6 +238,8 @@ export function showToast(message, type = 'info') {
     const ic = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-circle-xmark' : 'fa-info-circle');
     t.className = `flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-md shadow-lg transform transition-all translate-y-10 opacity-0 ${cl}`;
     t.innerHTML = `<i class="fa-solid ${ic}"></i> <span class="font-medium text-sm">${message}</span>`;
+    // Limit toast stack to 5 to prevent DOM bloat on rapid-fire calls
+    if (container.children.length >= 5) container.removeChild(container.firstChild);
     container.appendChild(t);
     requestAnimationFrame(() => t.classList.remove('translate-y-10', 'opacity-0'));
     setTimeout(() => {
@@ -389,8 +280,8 @@ export async function fetchNCBI(seqNum) {
     let isProt = acc.includes('_') ? /^[ANXWY]P_/.test(acc) : /^[A-Z]{3}\d{5,7}$/.test(acc);
     let isNuc = acc.includes('_') ? /^[NX][MRCGTW]_/.test(acc) : (/^[A-Z]{1}\d{5}$/.test(acc) || /^[A-Z]{2}\d{6}$/.test(acc) || /^[A-Z]{4}\d{8,9}$/.test(acc));
 
-    if (seqType === 'protein' && isNuc) { showToast("Error: DNA/RNA accession in Protein mode.", "error"); return; }
-    if (seqType === 'dna' && isProt) { showToast("Error: Protein accession in DNA/RNA mode.", "error"); return; }
+    if (getSeqType() === 'protein' && isNuc) { showToast("Error: DNA/RNA accession in Protein mode.", "error"); return; }
+    if (getSeqType() === 'dna' && isProt) { showToast("Error: Protein accession in DNA/RNA mode.", "error"); return; }
 
     await executeFetch(seqNum, val);
 }
@@ -403,7 +294,7 @@ async function executeFetch(seqNum, accessionId) {
     if (b) { b.disabled = true; b.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`; }
 
     try {
-        const dbType = seqType === 'protein' ? 'protein' : 'nuccore';
+        const dbType = getSeqType() === 'protein' ? 'protein' : 'nuccore';
         const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=${dbType}&id=${encodeURIComponent(accessionId)}&rettype=fasta&retmode=text`;
         const r = await fetch(url);
         if (!r.ok) throw new Error(`HTTP Error: ${r.status}`);
@@ -424,3 +315,6 @@ async function executeFetch(seqNum, accessionId) {
         if (b) { b.disabled = false; b.innerText = "Fetch"; }
     }
 }
+
+// handleMatrixChange deprecated and fully managed by state.js
+export function handleMatrixChange() { }

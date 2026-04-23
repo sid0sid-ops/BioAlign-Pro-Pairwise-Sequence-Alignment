@@ -4,31 +4,57 @@
  * @pipelineLocation Post-computation metrics phase. Relies on scoringMatrix.js to classify positive evolutionary substitutions.
  * @changeImpact Changing the >0 threshold assumption will blur the line between neutral mutations and conserved mutations.
  */
-
-/**
- * @file metrics/similarityCalculator.js
- * @description Utility to compute total functional similarity for protein translations.
- * @pipeline Scans an aligned sequence combination and references substitution data to determine if chemically similar mismatches warrant a 'positive' alignment hit contribution.
- */
-import { getMatrixScore } from '../core/scoringMatrix.js?v=27';
+import { getMatrixScore } from '../core/scoringMatrix.js';
 
 export function calculateSimilarity(alignedSeq1, alignedSeq2, matrixName) {
     let positives = 0;
-    let length = alignedSeq1.length;
-    
-    for (let i = 0; i < length; i++) {
+    let validPositions = 0;
+
+    for (let i = 0; i < alignedSeq1.length; i++) {
         const a = alignedSeq1[i];
         const b = alignedSeq2[i];
-        
-        if (a !== '-' && b !== '-') {
+
+        if (a === '-' || b === '-') continue;
+
+        validPositions++;
+
+        try {
             const score = getMatrixScore(a, b, matrixName);
-            if (score > 0) {
-                positives++;
-            }
+            if (score > 0) positives++;
+        } catch (err) {
+            continue;
         }
     }
-    
-    if (length === 0) return '0.00';
-    return ((positives / length) * 100).toFixed(2);
+
+    if (validPositions === 0) return '0.00';
+    const pct = (positives / validPositions) * 100;
+    return isFinite(pct) ? pct.toFixed(2) : '0.00';
+}
+
+export function calculateSimilarityDetailed(alignedSeq1, alignedSeq2, matrixName) {
+    let positives = 0;
+    let validPositions = 0;
+
+    for (let i = 0; i < alignedSeq1.length; i++) {
+        const a = alignedSeq1[i];
+        const b = alignedSeq2[i];
+
+        if (a === '-' || b === '-') continue;
+
+        validPositions++;
+
+        try {
+            const score = getMatrixScore(a, b, matrixName);
+            if (score > 0) positives++;
+        } catch {
+            continue;
+        }
+    }
+
+    const similarity = validPositions > 0
+        ? ((positives / validPositions) * 100).toFixed(2)
+        : '0.00';
+
+    return { positives, validPositions, similarity };
 }
 

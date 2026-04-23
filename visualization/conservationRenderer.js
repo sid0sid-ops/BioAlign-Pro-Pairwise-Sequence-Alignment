@@ -1,12 +1,5 @@
 /**
  * @file visualization/conservationRenderer.js
- * @description Analyzes alignment strings to apply color-coding (HTML tags or Canvas drawing) based on physical conservation states (hydrophobic, polar, identical, mismatch).
- * @pipelineLocation Rendering tier. Enhances the basic string viewer with biological color context.
- * @changeImpact Altering the color mapping dictionaries here will confuse researchers used to standard Clustal/Zappo biochemical color schemes.
- */
-
-/**
- * @file visualization/conservationRenderer.js
  * @description Builds the NCBI-style horizontal graphic summary scale bar indicating alignment coverage.
  * @pipeline Ingests the top alignment payload and constructs a dynamic HTML DOM element mapped out by percentile markers across the sequence query length.
  */
