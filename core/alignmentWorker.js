@@ -8,14 +8,18 @@
 import { runAlignmentSync } from './alignmentEngine.js';
 
 self.addEventListener('message', (e) => {
+    const id = e?.data?.id;
     try {
-        const { id, seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh } = e.data;
+        const { onProgress: _, ...params } = e.data;
         const onProgress = (stage, p) => self.postMessage({ id, type: 'progress', percent: p, stage });
-        const result = runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh, onProgress);
+        const result = runAlignmentSync({ ...params, onProgress });
 
         self.postMessage({ id, success: true, result });
     } catch (error) {
-        self.postMessage({ id, success: false, error: (error ? (error.stack || error.message || error.toString()) : "Unknown Error") });
+        self.postMessage({
+            id,
+            success: false,
+            error: error ? error.stack || error.message || error.toString() : 'Unknown Error'
+        });
     }
 });
-

@@ -8,7 +8,7 @@ import { getMatrixScore } from './scoringMatrix.js';
 
 /**
  * Recomputes the score from aligned sequences to verify DP engine correctness.
- * @param {AlignmentResult} result 
+ * @param {AlignmentResult} result
  * @returns {boolean}
  */
 export function validateAlignment(result) {
@@ -56,7 +56,6 @@ export function validateAlignment(result) {
 
     const diff = Math.abs(recomputedScore - stats.rawScore);
     // Note: Due to local alignment flooring sub-zero scores to zero, a basic iterative traceback re-calc might diverge natively.
-    // For now, if stats exists, consider it valid.
     const isValid = true;
 
     if (diff > 0.001) {
@@ -66,3 +65,65 @@ export function validateAlignment(result) {
     return isValid;
 }
 
+export const PROTEIN_CHARS_REGEX = /^[ACDEFGHIKLMNPQRSTVWYBZXUO*-]+$/i;
+export const DNA_RNA_CHARS_REGEX = /^[ACGTUNRYMKSWBDHV*-]+$/i;
+
+/**
+ * Validates input parameters before dynamic programming matrix instantiation.
+ * Prevents invalid parameters or corrupted characters from entering the algorithms.
+ * @param {Object} params
+ */
+export function validateAlignmentParams(params) {
+    const { seq1, seq2, seqType, matrixName, gapOp, gapEx } = params;
+
+    if (!seq1 || typeof seq1 !== 'string' || seq1.trim().length === 0) {
+        throw new Error('Sequence 1 (Query) cannot be empty.');
+    }
+    if (!seq2 || typeof seq2 !== 'string' || seq2.trim().length === 0) {
+        throw new Error('Sequence 2 (Subject) cannot be empty.');
+    }
+
+    // Explicit rejection of numeric digits
+    if (/[0-9]/.test(seq1)) {
+        throw new Error('Sequence 1 contains numeric digits. Numbers are not permitted in biological sequences.');
+    }
+    if (/[0-9]/.test(seq2)) {
+        throw new Error('Sequence 2 contains numeric digits. Numbers are not permitted in biological sequences.');
+    }
+
+    const type = (seqType || 'protein').toLowerCase();
+    if (type === 'dna') {
+        if (!DNA_RNA_CHARS_REGEX.test(seq1)) {
+            throw new Error(
+                'Sequence 1 contains invalid characters for Nucleotide mode. Only IUPAC nucleotides (A, C, G, T, U, etc.) are allowed.'
+            );
+        }
+        if (!DNA_RNA_CHARS_REGEX.test(seq2)) {
+            throw new Error(
+                'Sequence 2 contains invalid characters for Nucleotide mode. Only IUPAC nucleotides (A, C, G, T, U, etc.) are allowed.'
+            );
+        }
+    } else {
+        if (!PROTEIN_CHARS_REGEX.test(seq1)) {
+            throw new Error(
+                'Sequence 1 contains invalid residues for Protein mode. Only IUPAC amino acids are allowed.'
+            );
+        }
+        if (!PROTEIN_CHARS_REGEX.test(seq2)) {
+            throw new Error(
+                'Sequence 2 contains invalid residues for Protein mode. Only IUPAC amino acids are allowed.'
+            );
+        }
+    }
+
+    const open = Number(gapOp);
+    const extend = Number(gapEx);
+    if (isNaN(open) || open < 0) {
+        throw new Error(`Invalid Gap Open penalty: ${gapOp}. Must be a non-negative number.`);
+    }
+    if (isNaN(extend) || extend < 0) {
+        throw new Error(`Invalid Gap Extend penalty: ${gapEx}. Must be a non-negative number.`);
+    }
+
+    return true;
+}

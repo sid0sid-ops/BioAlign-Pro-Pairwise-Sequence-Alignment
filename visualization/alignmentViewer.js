@@ -23,21 +23,24 @@ export const renderSequenceMap = (result) => {
             ['#3b82f6', 'Seq_Alpha'],
             ['#22c55e', 'Seq_Beta'],
             ['#ef4444', 'Mismatch'],
-            ['#9ca3af', 'Gap'],
-        ].map(([c, label]) =>
-            `<span style="display:flex;align-items:center;gap:6px;">
+            ['#9ca3af', 'Gap']
+        ]
+            .map(
+                ([c, label]) =>
+                    `<span style="display:flex;align-items:center;gap:6px;">
                 <span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0;"></span>
                 <span style="font-size:11px;font-family:monospace;font-weight:600;">${label}</span>
              </span>`
-        ).join('');
+            )
+            .join('');
     }
 
     const CW = 14;
     const CON_H = 24;
-    
+
     let cWidth = container.clientWidth;
     if (cWidth < 100) cWidth = Math.min(window.innerWidth - 60, 800);
-    let availableWidth = cWidth - 240;
+    const availableWidth = cWidth - 240;
     const CHUNK = Math.max(10, Math.min(100, Math.floor(availableWidth / CW)));
 
     if (!window._alignmentViewerResizeAttached) {
@@ -71,22 +74,24 @@ export const renderSequenceMap = (result) => {
         const endA = aCursor + charsA;
         const endB = bCursor + charsB;
 
-        let row1 = '', conn = '', row2 = '';
+        let row1 = '',
+            conn = '',
+            row2 = '';
 
         for (let k = 0; k < cLen; k++) {
             const a = s1[k];
             const b = s2[k];
 
-            const gapA = (a === '-');
-            const gapB = (b === '-');
-            const matched = (!gapA && !gapB && a === b);
-            const mismatched = (!gapA && !gapB && a !== b);
+            const gapA = a === '-';
+            const gapB = b === '-';
+            const matched = !gapA && !gapB && a === b;
+            const mismatched = !gapA && !gapB && a !== b;
 
             const c1 = gapA ? '#9ca3af' : mismatched ? '#ef4444' : '#3b82f6';
-            const bold1 = (!gapA) ? '700' : '400';
+            const bold1 = !gapA ? '700' : '400';
 
             const c2 = gapB ? '#9ca3af' : mismatched ? '#ef4444' : '#22c55e';
-            const bold2 = (!gapB) ? '700' : '400';
+            const bold2 = !gapB ? '700' : '400';
 
             const cellStyle = `display:inline-block;width:${CW}px;text-align:center;font-family:'Courier New',monospace;font-size:13px;`;
             row1 += `<span style="${cellStyle}color:${c1};font-weight:${bold1};">${a}</span>`;
@@ -94,12 +99,14 @@ export const renderSequenceMap = (result) => {
 
             const cStyle = `display:inline-block;width:${CW}px;height:${CON_H}px;position:relative;vertical-align:top;`;
             if (matched) {
-                conn += `<span style="${cStyle}">` +
+                conn +=
+                    `<span style="${cStyle}">` +
                     `<span style="position:absolute;left:50%;transform:translateX(-50%);top:0;width:2px;height:100%;` +
                     `background:linear-gradient(to bottom,#3b82f6 0%,#22c55e 100%);border-radius:1px;"></span>` +
                     `</span>`;
             } else if (mismatched) {
-                conn += `<span style="${cStyle}">` +
+                conn +=
+                    `<span style="${cStyle}">` +
                     `<span style="position:absolute;left:50%;transform:translateX(-50%);top:0;width:2px;height:100%;` +
                     `background:#ef4444;border-radius:1px;"></span>` +
                     `</span>`;
@@ -111,7 +118,8 @@ export const renderSequenceMap = (result) => {
         const posStyle = `display:inline-block;width:36px;text-align:right;margin-right:6px;font-size:11px;font-family:monospace;color:#9ca3af;flex-shrink:0;`;
         const endStyle = `font-size:11px;font-family:monospace;color:#9ca3af;margin-left:6px;min-width:28px;`;
         const rowStyle = `display:flex;align-items:center;white-space:nowrap;`;
-        const nameStyle = (col) => `display:inline-block;min-width:${LABEL_W};font-weight:700;font-size:12px;font-family:monospace;color:${col};flex-shrink:0;`;
+        const nameStyle = (col) =>
+            `display:inline-block;min-width:${LABEL_W};font-weight:700;font-size:12px;font-family:monospace;color:${col};flex-shrink:0;`;
 
         chunks += `
         <div style="background:var(--surface,#f9f9f9);border:1px solid var(--border,#e5e7eb);border-radius:10px;

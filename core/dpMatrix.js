@@ -5,6 +5,8 @@
  * @changeImpact Altering the flat-array indexing logic (y * width + x) will immediately cause segmentation faults or silent array out-of-bounds corruption during alignment.
  */
 
+import { ALIGNMENT_TB } from './contracts.js';
+import { affineGapPenalty, linearGapPenalty } from './gap.js';
 /**
  * Traceback Constants (TB codes):
  * 0 = STOP (Local Boundary)
@@ -13,12 +15,21 @@
  * 3 = LEFT (Gap in Sequence 1)
  */
 import { getMatrixScore } from './scoringMatrix.js';
-import { linearGapPenalty, affineGapPenalty } from './gap.js';
-import { ALIGNMENT_TB } from './contracts.js';
 
 const NEG_INF = -Infinity;
 
-export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, onProgress = null) {
+export function buildDPMatrix(
+    s1,
+    s2,
+    isLocal,
+    gapMath,
+    gapOp,
+    gapEx,
+    matrixName,
+    customMatch,
+    customMismatch,
+    onProgress = null
+) {
     const n = s1.length;
     const m = s2.length;
     const W = m + 1;
@@ -28,18 +39,29 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
     const TB = new Uint8Array(sz);
 
     let globalMax = 0;
-    let maxI = 0, maxJ = 0;
+    let maxI = 0,
+        maxJ = 0;
 
     if (gapMath === 'linear') {
         const linearCost = gapOp; // Strict standard linear gap cost
         for (let i = 1; i <= n; i++) {
             const idx = i * W;
-            if (isLocal) { H[idx] = 0; TB[idx] = ALIGNMENT_TB.STOP; }
-            else { H[idx] = -linearGapPenalty(i, linearCost); TB[idx] = ALIGNMENT_TB.UP; }
+            if (isLocal) {
+                H[idx] = 0;
+                TB[idx] = ALIGNMENT_TB.STOP;
+            } else {
+                H[idx] = -linearGapPenalty(i, linearCost);
+                TB[idx] = ALIGNMENT_TB.UP;
+            }
         }
         for (let j = 1; j <= m; j++) {
-            if (isLocal) { H[j] = 0; TB[j] = ALIGNMENT_TB.STOP; }
-            else { H[j] = -linearGapPenalty(j, linearCost); TB[j] = ALIGNMENT_TB.LEFT; }
+            if (isLocal) {
+                H[j] = 0;
+                TB[j] = ALIGNMENT_TB.STOP;
+            } else {
+                H[j] = -linearGapPenalty(j, linearCost);
+                TB[j] = ALIGNMENT_TB.LEFT;
+            }
         }
 
         for (let i = 1; i <= n; i++) {
@@ -59,14 +81,18 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
                 if (isLocal && best < 0) best = 0;
                 H[idx] = best;
 
-                let tb = ALIGNMENT_TB.STOP;
+                let tb;
                 if (isLocal && best === 0) tb = ALIGNMENT_TB.STOP;
                 else if (best === matchSc) tb = ALIGNMENT_TB.DIAGONAL;
                 else if (best === delSc) tb = ALIGNMENT_TB.UP;
                 else tb = ALIGNMENT_TB.LEFT;
                 TB[idx] = tb;
 
-                if (isLocal && best > globalMax) { globalMax = best; maxI = i; maxJ = j; }
+                if (isLocal && best > globalMax) {
+                    globalMax = best;
+                    maxI = i;
+                    maxJ = j;
+                }
             }
         }
     } else {
@@ -74,7 +100,7 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
         const Ix = new Float64Array(sz);
         const Iy = new Float64Array(sz);
 
-        const openPenalty = gapOp + gapEx;
+        const openPenalty = gapOp;
         const extendPenalty = gapEx;
 
         M_mat[0] = 0;
@@ -85,34 +111,40 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
         for (let i = 1; i <= n; i++) {
             const idx = i * W;
             if (isLocal) {
-                M_mat[idx] = 0; Ix[idx] = NEG_INF; Iy[idx] = NEG_INF;
-                H[idx] = 0; TB[idx] = ALIGNMENT_TB.STOP;
+                M_mat[idx] = 0;
+                Ix[idx] = NEG_INF;
+                Iy[idx] = NEG_INF;
+                H[idx] = 0;
+                TB[idx] = ALIGNMENT_TB.STOP;
             } else {
                 M_mat[idx] = NEG_INF;
                 Ix[idx] = -affineGapPenalty(i, openPenalty, extendPenalty); // Pure Needleman-Wunsch penalized end gap
                 Iy[idx] = NEG_INF;
                 H[idx] = Ix[idx];
-                let tbM = 0;
-                let tbIx = (i === 1) ? 0 : 1;
-                let tbIy = 0;
-                let tbH = ALIGNMENT_TB.UP;
+                const tbM = 0;
+                const tbIx = i === 1 ? 0 : 1;
+                const tbIy = 0;
+                const tbH = ALIGNMENT_TB.UP;
                 TB[idx] = tbH | (tbIx << 2) | (tbIy << 3) | (tbM << 4);
             }
         }
         for (let j = 1; j <= m; j++) {
             const idx = j;
             if (isLocal) {
-                M_mat[idx] = 0; Ix[idx] = NEG_INF; Iy[idx] = NEG_INF;
-                H[idx] = 0; TB[idx] = ALIGNMENT_TB.STOP;
+                M_mat[idx] = 0;
+                Ix[idx] = NEG_INF;
+                Iy[idx] = NEG_INF;
+                H[idx] = 0;
+                TB[idx] = ALIGNMENT_TB.STOP;
             } else {
                 M_mat[idx] = NEG_INF;
                 Ix[idx] = NEG_INF;
                 Iy[idx] = -affineGapPenalty(j, openPenalty, extendPenalty); // Pure Needleman-Wunsch penalized end gap
                 H[idx] = Iy[idx];
-                let tbM = 0;
-                let tbIx = 0;
-                let tbIy = (j === 1) ? 0 : 1;
-                let tbH = ALIGNMENT_TB.LEFT;
+                const tbM = 0;
+                const tbIx = 0;
+                const tbIy = j === 1 ? 0 : 1;
+                const tbH = ALIGNMENT_TB.LEFT;
                 TB[idx] = tbH | (tbIx << 2) | (tbIy << 3) | (tbM << 4);
             }
         }
@@ -126,38 +158,42 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
                 const leftI = i * W + (j - 1);
 
                 // M_mat
-                let mVal = M_mat[diagI];
-                let ixVal = Ix[diagI];
-                let iyVal = Iy[diagI];
+                const mVal = M_mat[diagI];
+                const ixVal = Ix[diagI];
+                const iyVal = Iy[diagI];
                 let bestDiag = Math.max(mVal, ixVal, iyVal);
                 if (isLocal && bestDiag < 0) bestDiag = 0;
 
                 const sc = getMatrixScore(s1[i - 1], s2[j - 1], matrixName, customMatch, customMismatch);
                 M_mat[idx] = bestDiag + sc;
 
-                let tbM = 0; // Which matrix led to bestDiag?
+                let tbM; // Which matrix led to bestDiag?
                 if (bestDiag === mVal) tbM = 0;
                 else if (bestDiag === ixVal) tbM = 1;
                 else tbM = 2;
 
                 // Ix
-                let ixOpen = M_mat[upI] - openPenalty;
-                let ixExt = Ix[upI] - extendPenalty;
-                Ix[idx] = Math.max(ixOpen, ixExt);
-                let tbIx = (Ix[idx] === ixExt && ixExt >= ixOpen) ? 1 : 0;
+                const ixOpen = M_mat[upI] - openPenalty;
+                const ixExt = Ix[upI] - extendPenalty;
+                let bestIx = Math.max(ixOpen, ixExt);
+                if (isLocal && bestIx < 0) bestIx = 0;
+                Ix[idx] = bestIx;
+                const tbIx = Ix[idx] === ixExt && ixExt >= ixOpen ? 1 : 0;
 
                 // Iy
-                let iyOpen = M_mat[leftI] - openPenalty;
-                let iyExt = Iy[leftI] - extendPenalty;
-                Iy[idx] = Math.max(iyOpen, iyExt);
-                let tbIy = (Iy[idx] === iyExt && iyExt >= iyOpen) ? 1 : 0;
+                const iyOpen = M_mat[leftI] - openPenalty;
+                const iyExt = Iy[leftI] - extendPenalty;
+                let bestIy = Math.max(iyOpen, iyExt);
+                if (isLocal && bestIy < 0) bestIy = 0;
+                Iy[idx] = bestIy;
+                const tbIy = Iy[idx] === iyExt && iyExt >= iyOpen ? 1 : 0;
 
                 // Overall H for this cell (for plotting/max tracking)
                 let best = Math.max(M_mat[idx], Ix[idx], Iy[idx]);
                 if (isLocal && best < 0) best = 0;
                 H[idx] = best;
 
-                let tbH = ALIGNMENT_TB.STOP;
+                let tbH;
                 if (isLocal && best === 0) tbH = ALIGNMENT_TB.STOP;
                 else if (best === M_mat[idx]) tbH = ALIGNMENT_TB.DIAGONAL;
                 else if (best === Ix[idx]) tbH = ALIGNMENT_TB.UP;
@@ -165,25 +201,38 @@ export function buildDPMatrix(s1, s2, isLocal, gapMath, gapOp, gapEx, matrixName
 
                 TB[idx] = tbH | (tbIx << 2) | (tbIy << 3) | (tbM << 4);
 
-                if (isLocal && best > globalMax) { globalMax = best; maxI = i; maxJ = j; }
+                if (isLocal && best > globalMax) {
+                    globalMax = best;
+                    maxI = i;
+                    maxJ = j;
+                }
             }
         }
     }
 
-    let maxScore = NEG_INF;
-    let startI = n;
-    let startJ = m;
+    let maxScore;
+    let startI;
+    let startJ;
 
     if (isLocal) {
         maxScore = globalMax;
         startI = maxI;
         startJ = maxJ;
     } else {
-        startI = n; startJ = m; maxScore = H[n * W + m];
+        startI = n;
+        startJ = m;
+        maxScore = H[n * W + m];
     }
 
     return {
-        H, TB, n, m, isLocal, maxI: startI, maxJ: startJ, rawScore: maxScore, gapMath
+        H,
+        TB,
+        n,
+        m,
+        isLocal,
+        maxI: startI,
+        maxJ: startJ,
+        rawScore: maxScore,
+        gapMath
     };
 }
-

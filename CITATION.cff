@@ -1,9 +1,10 @@
 cff-version: 1.2.0
 message: "If you use BioAlign-Pro, please cite it as below."
-title: BioAlign-Pro — Pairwise Sequence Alignment
+title: "BioAlign-Pro: Pairwise Sequence Alignment Engine"
 authors:
   - family-names: Tripathi
     given-names: Siddharth
+    affiliation: "Centre for Systems Biology & Bioinformatics, Panjab University"
 url: "https://sid0sid-ops.github.io/BioAlign-Pro-Pairwise-Sequence-Alignment/"
 repository-code: "https://github.com/sid0sid-ops/BioAlign-Pro-Pairwise-Sequence-Alignment"
 license: MIT

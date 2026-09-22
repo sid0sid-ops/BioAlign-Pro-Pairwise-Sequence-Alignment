@@ -78,6 +78,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
 
 <body
     class="bg-background text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col">
@@ -107,11 +108,11 @@
                 title="Toggle Light/Dark Theme">
                 <i id="themeIcon" class="fa-solid fa-moon text-black dark:text-white"></i>
             </button>
-            <div class="flex items-center gap-4">
+            <div id="nav-desktop-links" class="hidden md:flex items-center gap-4">
                 <a href="https://sid0sid-ops.github.io/BioAlign-Pro-Homepage/" target="_blank"
                     class="flex items-center gap-2 px-3 py-1 hover:bg-black/5 dark:hover:bg-white/10 hover:text-black dark:hover:text-white rounded-full transition-colors focus:outline-none"
                     title="Reload / Home">
-                    <i class="fa-solid fa-house"></i> <span class="hidden sm:inline">Home</span>
+                    <i class="fa-solid fa-house"></i> <span>Home</span>
                 </a>
                 <a href="https://sid0sid-ops.github.io/BioAlign-Pro-Contact/" target="_blank"
                     class="px-3 py-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors border border-black dark:border-white">Contact</a>
@@ -148,11 +149,7 @@
                 <h2 class="text-4xl font-extrabold tracking-tight sm:text-5xl text-black dark:text-white">Pairwise
                     Sequence
                     <br>Alignment Engine
-                    <div class="pt-2">
-                        <span class="text-sm italic text-muted font-serif tracking-wide leading-relaxed block">
-                            Precision Pairwise Sequence Alignment • Powered by EMBOSS &amp; NCBI BLAST Mathematics
-                        </span>
-                    </div>
+                </h2>
             </div>
 
             <div class="mt-6 mb-6 flex items-center gap-2 bg-surface p-1.5 rounded-full border border-border shadow-sm">
@@ -254,15 +251,8 @@
                                 </p>
                             </div>
                         </button>
-                        <!-- Empty Card -->
-                        <div
-                            class="flex-[1_1_min(100%,_300px)] max-w-md group relative p-8 rounded-2xl bg-transparent border-none shadow-none">
-                        </div>
                     </div>
                 </div>
-            </div>
-            </div>
-
             </div>
 
         </section>
@@ -271,8 +261,8 @@
         <!-- Stage 2: Main Application Workspace (Hidden initially) -->
         <section id="workspaceStage" class="hidden flex-col gap-8">
 
-            <div class="flex items-start sm:items-center justify-between">
-                <div class="w-full">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-border/40">
+                <div>
                     <button id="btnReturnLanding"
                         class="text-sm text-muted hover:text-black dark:hover:text-white flex items-center gap-2 mb-2 transition-colors">
                         <i class="fa-solid fa-arrow-left"></i> Back to selection
@@ -282,6 +272,12 @@
                         Global Alignment <span
                             class="px-2 py-1 bg-surface border border-border rounded text-xs font-mono text-red-500 font-normal whitespace-normal w-max max-w-full leading-tight">Needleman-Wunsch</span>
                     </h2>
+                </div>
+
+                <!-- Sequence Type Switcher inside Workspace (Global, Local & BLAST) -->
+                <div class="flex items-center gap-1.5 bg-surface p-1.5 rounded-full border border-border shadow-sm flex-shrink-0 self-start sm:self-auto">
+                    <button id="workspaceTypeProteinBtn" class="yt-chip active">Protein</button>
+                    <button id="workspaceTypeDnaBtn" class="yt-chip">Nucleotide</button>
                 </div>
             </div>
 
@@ -327,6 +323,10 @@
                                 <textarea id="seq1" spellcheck="false"
                                     class="w-full h-[120px] bg-background border border-border rounded-lg p-3 text-gray-900 dark:text-gray-200 font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all resize-y"
                                     placeholder="Paste your protein sequence (FASTA or raw)"></textarea>
+                                <div id="seq1-validation-error" class="hidden mt-2 p-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-mono text-red-600 dark:text-red-400 flex items-start gap-2">
+                                    <i class="fa-solid fa-circle-exclamation mt-0.5 text-red-500 flex-shrink-0"></i>
+                                    <span class="error-text"></span>
+                                </div>
                             </div>
                             <!-- Upload FASTA -->
                             <div id="content-1-upload"
@@ -404,6 +404,10 @@
                                 <textarea id="seq2" spellcheck="false"
                                     class="w-full h-[120px] bg-background border border-border rounded-lg p-3 text-gray-900 dark:text-gray-200 font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all resize-y"
                                     placeholder="Paste your protein sequence (FASTA or raw)"></textarea>
+                                <div id="seq2-validation-error" class="hidden mt-2 p-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-mono text-red-600 dark:text-red-400 flex items-start gap-2">
+                                    <i class="fa-solid fa-circle-exclamation mt-0.5 text-red-500 flex-shrink-0"></i>
+                                    <span class="error-text"></span>
+                                </div>
                             </div>
                             <!-- Upload FASTA -->
                             <div id="content-2-upload"
@@ -528,7 +532,7 @@
                                             <option value="PAM250">PAM250</option>
                                         </optgroup>
                                         <optgroup label="DNA/RNA Matrices" id="dnaMatrices">
-                                            <option value="DNAFULL" selected>DNAFULL (Standard DNA)</option>
+                                            <option value="DNAFULL">DNAFULL (Standard DNA)</option>
                                             <option value="BLASTN">BLASTN (Closer matching)</option>
                                         </optgroup>
                                     </select>
@@ -565,19 +569,49 @@
                                     class="text-[10px] font-bold text-muted uppercase tracking-wider mt-4 mb-2 border-b border-border/50 pb-1 hidden">
                                     BLAST Heuristics</h4>
                                 <div id="ncbiWordSizeGroup" class="hidden space-y-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-black dark:text-white mb-2">Word
-                                            Size (NCBI BLAST)</label>
-                                        <input type="number" id="paramWordSize" min="2" max="15" value="11"
-                                            class="w-full bg-surface border border-border text-black dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-                                        <p class="text-xs text-muted mt-1">Seed length (k-mer).</p>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label for="paramWordSize" class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
+                                                Word Size (W)
+                                            </label>
+                                            <input type="number" id="paramWordSize" min="2" max="15" value="3"
+                                                class="w-full bg-background border border-border text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white transition-all" />
+                                            <p class="text-[10px] text-muted mt-0.5">Seed k-mer size</p>
+                                        </div>
+                                        <div>
+                                            <label for="paramThresholdT" class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
+                                                Threshold (T)
+                                            </label>
+                                            <input type="number" id="paramThresholdT" min="1" max="50" value="11"
+                                                class="w-full bg-background border border-border text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white transition-all" />
+                                            <p class="text-[10px] text-muted mt-0.5">Neighbor score cutoff</p>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label for="paramXDropoff" class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
+                                                X-Dropoff
+                                            </label>
+                                            <input type="number" id="paramXDropoff" min="5" max="100" value="20"
+                                                class="w-full bg-background border border-border text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white transition-all" />
+                                            <p class="text-[10px] text-muted mt-0.5">Ungapped drop limit</p>
+                                        </div>
+                                        <div>
+                                            <label for="paramExpectThreshold" class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
+                                                Expect Cutoff (E)
+                                            </label>
+                                            <input type="number" id="paramExpectThreshold" min="0" step="any" value="0.05"
+                                                class="w-full bg-background border border-border text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white transition-all" />
+                                            <p class="text-[10px] text-muted mt-0.5">E-value significance</p>
+                                        </div>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-black dark:text-white mb-2">Expect
-                                            Threshold</label>
-                                        <input type="number" id="paramExpectThreshold" min="0" step="any" value="0.05"
-                                            class="w-full bg-surface border border-border text-black dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-                                        <p class="text-xs text-muted mt-1">E-value cutoff for keeping alignments.</p>
+                                        <label for="paramDbSize" class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
+                                            Search Space (N)
+                                        </label>
+                                        <input type="number" id="paramDbSize" placeholder="Auto (Effective space m·n)" min="1" step="any"
+                                            class="w-full bg-background border border-border text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white transition-all" />
+                                        <p class="text-[10px] text-muted mt-0.5">Effective database length in residues</p>
                                     </div>
                                 </div>
 
@@ -590,7 +624,7 @@
                                     class="space-y-2 relative group z-10 hover:z-50 transition-all mt-3">
                                     <label for="paramGapOpen"
                                         class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
-                                        <span class="flex items-center gap-2">Gap Open Penalty (Existence)
+                                        <span class="flex items-center gap-2"><span id="gapOpenLabelText">Gap Open Penalty (Existence)</span>
                                             <div class="tooltip-trigger relative flex items-center cursor-help">
                                                 <i
                                                     class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
@@ -603,7 +637,6 @@
                                         <span id="gapOpenVal" class="text-black dark:text-white font-bold">10</span>
                                     </label>
                                     <input type="range" id="paramGapOpen" min="1" max="20" value="10" step="1"
-                                        style="background:linear-gradient(to right,var(--primary) 47.4%,var(--chip-bg) 47.4%)"
                                         class="w-full range-slider relative z-0">
                                 </div>
 
@@ -624,7 +657,6 @@
                                         <span id="gapExtVal" class="text-black dark:text-white font-bold">0.5</span>
                                     </label>
                                     <input type="range" id="paramGapExtend" min="0.1" max="5.0" value="0.5" step="0.1"
-                                        style="background:linear-gradient(to right,var(--primary) 8.2%,var(--chip-bg) 8.2%)"
                                         class="w-full range-slider relative z-0">
                                 </div>
 
@@ -637,36 +669,17 @@
                                                 <i
                                                     class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
                                                 <div class="custom-tooltip" style="width: max-content;">
-                                                    EMBOSS formula = G_open + (k-1)G_ext. <br>
-                                                    NCBI formula = G_open + k G_ext.
+                                                    Affine: G_open + (k-1) · G_ext (Gotoh 3-state DP)<br>
+                                                    Linear: k · G_penalty (Single matrix DP)
                                                 </div>
                                             </div>
                                         </span>
                                     </label>
                                     <select id="paramGapMath"
                                         class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white transition-all">
-                                        <option value="affine">Affine Gap (EMBOSS Style)</option>
-                                        <option value="linear">Linear Gap (NCBI / BLAST)</option>
+                                        <option value="affine">Affine Gap (Gotoh 3-State / EMBOSS)</option>
+                                        <option value="linear">Linear Gap (Single Penalty)</option>
                                     </select>
-                                </div>
-
-                                <div class="hidden space-y-2 relative group z-10 hover:z-50 transition-all">
-                                    <label for="paramDbSize"
-                                        class="text-xs font-semibold text-muted uppercase tracking-wider flex justify-between relative z-[60]">
-                                        <span class="flex items-center gap-2">Database Size (N)
-                                            <div class="tooltip-trigger relative flex items-center cursor-help">
-                                                <i
-                                                    class="fa-solid fa-circle-question text-[10px] hover:text-primary transition-colors"></i>
-                                                <div class="custom-tooltip">
-                                                    Effective search space (in letters). Leave empty for pairwise. e.g.
-                                                    5000000000 for realistic BLAST E-value.
-                                                </div>
-                                            </div>
-                                        </span>
-                                    </label>
-                                    <input type="number" id="paramDbSize" placeholder="Auto (Pairwise limit)" min="1"
-                                        step="any"
-                                        class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-black dark:focus:border-white transition-all">
                                 </div>
 
                                 <div id="endGapsGroup"
@@ -686,7 +699,7 @@
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="paramEndGaps" class="sr-only peer">
                                         <div
-                                            class="w-11 h-6 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#065fd4] dark:peer-checked:bg-[#3ea6ff]">
+                                            class="w-11 h-6 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black dark:peer-checked:bg-white dark:peer-checked:after:bg-black">
                                         </div>
                                     </label>
                                 </div>
@@ -710,9 +723,7 @@
                                                 class="text-black dark:text-white font-bold">10</span>
                                         </label>
                                         <input type="range" id="paramEndGapOpen" min="1" max="20" value="10" step="1"
-                                            style="background:linear-gradient(to right,var(--primary) 47.4%,var(--chip-bg) 47.4%)"
-                                            class="w-full range-slider relative z-0"
-                                            oninput="document.getElementById('endGapOpenVal').innerText=this.value">
+                                            class="w-full range-slider relative z-0">
                                     </div>
                                     <div class="space-y-2 relative group z-0 hover:z-50 transition-all">
                                         <label for="paramEndGapExtend"
@@ -730,9 +741,7 @@
                                                 class="text-black dark:text-white font-bold">0.5</span>
                                         </label>
                                         <input type="range" id="paramEndGapExtend" min="0.1" max="5.0" value="0.5"
-                                            style="background:linear-gradient(to right,var(--primary) 8.2%,var(--chip-bg) 8.2%)"
-                                            step="0.1" class="w-full range-slider relative z-0"
-                                            oninput="document.getElementById('endGapExtVal').innerText=this.value">
+                                            step="0.1" class="w-full range-slider relative z-0">
                                     </div>
                                 </div>
                             </div>
@@ -740,8 +749,6 @@
                         </div>
                     </div>
                 </div>
-
-            </div>
 
             </div>
 
@@ -794,6 +801,11 @@
                     <div class="flex flex-col">
                         <span class="text-xs uppercase tracking-wider text-muted font-semibold">Gaps</span>
                         <span id="resGaps" class="text-2xl font-bold text-muted font-mono">--</span>
+                    </div>
+                    <div class="h-8 w-px bg-border hidden sm:block"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs uppercase tracking-wider text-muted font-semibold">Gap Model</span>
+                        <span id="resGapModel" class="text-xs sm:text-sm font-bold text-black dark:text-white font-mono mt-1 whitespace-nowrap">--</span>
                     </div>
                 </div>
 
@@ -939,6 +951,7 @@
                 </div>
             </div>
 
+        </section>
     </main>
 
 

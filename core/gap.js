@@ -8,8 +8,8 @@
 /**
  * linearGapPenalty — NCBI BLAST standard linear gap model
  * Formula: gap_open + k * gap_extend
- * 
- * Note: Enforcing strict linear gap handling. 
+ *
+ * Note: Enforcing strict linear gap handling.
  * Often user passes raw gapOp which serves as the unit cost per gap.
  */
 export const linearGapPenalty = (k, gapCost) => {

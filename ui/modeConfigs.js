@@ -12,57 +12,57 @@
  */
 export const modeConfigs = {
     protein_needle: {
-        algorithm: "needleman_wunsch",
-        gapModel: "affine",
-        matrix: "BLOSUM62",
+        algorithm: 'needleman_wunsch',
+        gapModel: 'affine',
+        matrix: 'BLOSUM62',
         gapOpen: 10,
         gapExtend: 0.5,
         local: false
     },
     protein_ncbi_global: {
-        algorithm: "needleman_wunsch",
-        gapModel: "linear",
-        matrix: "BLOSUM62",
+        algorithm: 'needleman_wunsch',
+        gapModel: 'linear',
+        matrix: 'BLOSUM62',
         gapOpen: 11,
         gapExtend: 1,
         local: false
     },
     protein_water: {
-        algorithm: "smith_waterman",
-        gapModel: "affine",
-        matrix: "BLOSUM62",
+        algorithm: 'smith_waterman',
+        gapModel: 'affine',
+        matrix: 'BLOSUM62',
         gapOpen: 10,
         gapExtend: 0.5,
         local: true
     },
     blastp_like: {
-        algorithm: "smith_waterman",
-        gapModel: "linear",
-        matrix: "BLOSUM62",
+        algorithm: 'smith_waterman',
+        gapModel: 'linear',
+        matrix: 'BLOSUM62',
         gapOpen: 11,
         gapExtend: 1,
         local: true
     },
     dna_needle: {
-        algorithm: "needleman_wunsch",
-        gapModel: "affine",
-        matrix: "EDNAFULL",
+        algorithm: 'needleman_wunsch',
+        gapModel: 'affine',
+        matrix: 'EDNAFULL',
         gapOpen: 10,
         gapExtend: 0.5,
         local: false
     },
     dna_water: {
-        algorithm: "smith_waterman",
-        gapModel: "affine",
-        matrix: "DNAFULL",
+        algorithm: 'smith_waterman',
+        gapModel: 'affine',
+        matrix: 'DNAFULL',
         gapOpen: 10,
         gapExtend: 0.5,
         local: true
     },
     blastn: {
-        algorithm: "smith_waterman",
-        gapModel: "linear",
-        matrix: "BLASTN",
+        algorithm: 'smith_waterman',
+        gapModel: 'linear',
+        matrix: 'BLASTN',
         match: 2,
         mismatch: -3,
         gapOpen: 5,

@@ -5,15 +5,15 @@
  * @changeImpact Modifying worker instantiation or message passing logic here will disrupt the asynchronous non-blocking UI flow and could cause race conditions.
  */
 
+import { blastSeedExtend } from '../algorithms/blastSeedExtend.js';
 import { needlemanWunsch } from '../algorithms/needlemanWunsch.js';
 import { smithWaterman } from '../algorithms/smithWaterman.js';
-import { blastSeedExtend } from '../algorithms/blastSeedExtend.js';
+import { calculateStatistics, isStatsValid } from '../metrics/blastStatistics.js';
 import { calculateIdentity } from '../metrics/identityCalculator.js';
-import { calculateSimilarity } from '../metrics/similarityCalculator.js';
-import { isStatsValid, calculateStatistics } from '../metrics/blastStatistics.js';
-import { determineMode } from '../ui/modeConfigs.js';
-import { validateAlignment } from './alignmentValidator.js';
 import { jukesCantorDistance, poissonDistance } from '../metrics/phylogenetics.js';
+import { calculateSimilarity } from '../metrics/similarityCalculator.js';
+import { determineMode } from '../ui/modeConfigs.js';
+import { validateAlignment, validateAlignmentParams } from './alignmentValidator.js';
 
 const VISUAL_LIMIT = 160_000;
 
@@ -24,8 +24,15 @@ function _getWorker() {
     if (!_workerOk) return null;
     if (_worker) return _worker;
     try {
+        if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+            _workerOk = false;
+            return null;
+        }
         _worker = new Worker(new URL('../core/alignmentWorker.js', import.meta.url), { type: 'module' });
-        _worker.onerror = () => { _workerOk = false; _worker = null; };
+        _worker.onerror = () => {
+            _workerOk = false;
+            _worker = null;
+        };
         return _worker;
     } catch {
         _workerOk = false;
@@ -33,30 +40,113 @@ function _getWorker() {
     }
 }
 
-export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh = null, onProgress = null) {
+/**
+ * Normalizes input parameters from either a structured configuration object or positional arguments.
+ * Ensures modularity and decoupling across the entire application.
+ */
+export function normalizeAlignmentParams(arg1, ...rest) {
+    if (typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
+        return {
+            seq1: arg1.seq1 || '',
+            seq2: arg1.seq2 || '',
+            seqType: arg1.seqType || arg1.sequenceType || 'protein',
+            gapMath: arg1.gapMath || arg1.gapModel || 'affine',
+            gapOp: arg1.gapOp ?? arg1.gapOpen ?? 10,
+            gapEx: arg1.gapEx ?? arg1.gapExtend ?? 0.5,
+            matrixName: arg1.matrixName || arg1.matrix || 'BLOSUM62',
+            customMatch: arg1.customMatch ?? arg1.match,
+            customMismatch: arg1.customMismatch ?? arg1.mismatch,
+            algoType: arg1.algoType || arg1.algorithm || 'global',
+            databaseSize: arg1.databaseSize ?? arg1.dbSize ?? null,
+            expectThresh: arg1.expectThresh ?? arg1.expectThreshold ?? null,
+            wordSize: arg1.wordSize ? Number(arg1.wordSize) : null,
+            thresholdT: arg1.thresholdT ? Number(arg1.thresholdT) : null,
+            xDropoff: arg1.xDropoff ? Number(arg1.xDropoff) : null,
+            onProgress: arg1.onProgress || null
+        };
+    }
+
+    return {
+        seq1: arg1 || '',
+        seq2: rest[0] || '',
+        seqType: rest[1] || 'protein',
+        gapMath: rest[2] || 'affine',
+        gapOp: rest[3] ?? 10,
+        gapEx: rest[4] ?? 0.5,
+        matrixName: rest[5] || 'BLOSUM62',
+        customMatch: rest[6],
+        customMismatch: rest[7],
+        algoType: rest[8] || 'global',
+        databaseSize: rest[9] ?? null,
+        expectThresh: rest[10] ?? null,
+        wordSize: rest[11] ? Number(rest[11]) : null,
+        thresholdT: rest[12] ? Number(rest[12]) : null,
+        xDropoff: rest[13] ? Number(rest[13]) : null,
+        onProgress: rest[14] || null
+    };
+}
+
+export function runAlignmentSync(arg1, ...rest) {
+    const params = normalizeAlignmentParams(arg1, ...rest);
+    validateAlignmentParams(params);
+
+    const {
+        seq1,
+        seq2,
+        seqType,
+        gapMath,
+        gapOp,
+        gapEx,
+        matrixName,
+        customMatch,
+        customMismatch,
+        algoType,
+        databaseSize,
+        expectThresh,
+        onProgress,
+        wordSize,
+        thresholdT,
+        xDropoff
+    } = params;
+
     const isLocal = algoType === 'local' || algoType === 'blast';
     const strictMode = determineMode(seqType, isLocal, gapMath, matrixName);
 
     const ALGORITHM_MAP = {
-        'global': needlemanWunsch,
-        'blast': blastSeedExtend,
-        'local': smithWaterman
+        global: needlemanWunsch,
+        blast: blastSeedExtend,
+        local: smithWaterman
     };
 
     const openNum = parseFloat(gapOp) || Number(gapOp);
     const exNum = parseFloat(gapEx) || Number(gapEx);
 
     const algorithmFn = ALGORITHM_MAP[algoType] ?? smithWaterman;
-    const result = algorithmFn(seq1, seq2, gapMath, openNum, exNum, matrixName, customMatch, customMismatch, onProgress);
+    const result =
+        algoType === 'blast'
+            ? blastSeedExtend(
+                  seq1,
+                  seq2,
+                  gapMath,
+                  openNum,
+                  exNum,
+                  matrixName,
+                  customMatch,
+                  customMismatch,
+                  onProgress,
+                  wordSize,
+                  thresholdT,
+                  xDropoff
+              )
+            : algorithmFn(seq1, seq2, gapMath, openNum, exNum, matrixName, customMatch, customMismatch, onProgress);
 
     const { dp, tb } = result;
     const cellCount = (dp.n + 1) * (dp.m + 1);
     const sendVisual = cellCount <= VISUAL_LIMIT;
 
     const identityPercent = calculateIdentity(tb.matches, tb.length);
-    const phylogeneticDistance = seqType === 'dna'
-        ? jukesCantorDistance(identityPercent / 100)
-        : poissonDistance(identityPercent / 100);
+    const phylogeneticDistance =
+        seqType === 'dna' ? jukesCantorDistance(identityPercent / 100) : poissonDistance(identityPercent / 100);
 
     let similarityPercent = null;
     if (seqType === 'protein' && tb.length > 0) {
@@ -68,20 +158,31 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
     let bitScoreVal = null;
     let eValueVal = null;
 
-    if (isLocal && gapMath === 'linear') {
-        const sv = isStatsValid(gapMath, algoType, matrixName, openNum, exNum);
+    if (isLocal) {
+        const sv = isStatsValid(gapMath, algoType, matrixName, openNum, exNum, customMatch, customMismatch);
         statsAvailable = sv.valid;
         statsReason = sv.reason || null;
 
         if (sv.valid) {
-            const stats = calculateStatistics(dp.rawScore, seq1.length, seq2.length, matrixName, openNum, exNum, databaseSize);
+            const stats = calculateStatistics(
+                dp.rawScore,
+                seq1.length,
+                seq2.length,
+                matrixName,
+                openNum,
+                exNum,
+                databaseSize,
+                customMatch,
+                customMismatch
+            );
             if (stats) {
-                // Ensure they are numbers not strings for strict API formats
                 bitScoreVal = Number(stats.bitScore);
                 eValueVal = Number(stats.eValue);
 
                 if (expectThresh !== null && expectThresh !== undefined && eValueVal > expectThresh) {
-                    throw new Error(`No significant similarity found (E-value ${eValueVal.toExponential(2)} exceeds threshold ${expectThresh}).`);
+                    throw new Error(
+                        `No significant similarity found (E-value ${eValueVal.toExponential(2)} exceeds threshold ${expectThresh}).`
+                    );
                 }
             }
         }
@@ -111,6 +212,8 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
             gapModel: gapMath,
             gapOpen: openNum,
             gapExtend: exNum,
+            customMatch: customMatch,
+            customMismatch: customMismatch,
             timestamp: new Date().toISOString()
         },
         tracePath: sendVisual ? tb.tracePath : [],
@@ -137,6 +240,7 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
     finalResult.additional_metrics = {
         mathLength: tb.length,
         matches: tb.matches,
+        positives: tb.positives,
         alignedSeq1: tb.alignedSeq1,
         alignedSeq2: tb.alignedSeq2,
         matchLine: tb.matchLine,
@@ -156,6 +260,8 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
         bit_score: bitScoreVal,
         e_value: eValueVal,
         gapMath: gapMath,
+        customMatch: customMatch,
+        customMismatch: customMismatch,
         // Legacy UI fields
         matrixName: matrixName,
         algoType: algoType
@@ -164,8 +270,11 @@ export function runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, mat
     return finalResult;
 }
 
-export const runAlignment = (seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh) => {
-    const worker = null;
+export const runAlignment = (arg1, ...rest) => {
+    const params = normalizeAlignmentParams(arg1, ...rest);
+    validateAlignmentParams(params);
+
+    const worker = _getWorker();
 
     if (worker) {
         return new Promise((resolve, reject) => {
@@ -182,6 +291,10 @@ export const runAlignment = (seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixN
 
             const onMessage = (e) => {
                 if (e.data.id !== id) return;
+                if (e.data.type === 'progress') {
+                    if (params.onProgress) params.onProgress(e.data.stage, e.data.percent);
+                    return;
+                }
                 settle(() => {
                     if (e.data.success) resolve(e.data.result);
                     else reject(new Error(e.data.error));
@@ -191,18 +304,18 @@ export const runAlignment = (seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixN
             const timer = setTimeout(() => {
                 settle(() => {
                     console.warn('BioAlign-Pro: worker timeout - falling back to sync computation.');
-                    try { resolve(runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh)); }
-                    catch (err) { reject(err); }
+                    try {
+                        resolve(runAlignmentSync(params));
+                    } catch (err) {
+                        reject(err);
+                    }
                 });
-            }, 5000);
+            }, 10000);
 
             worker.addEventListener('message', onMessage);
-            worker.postMessage({ id, seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh });
+            worker.postMessage({ id, ...params });
         });
     }
 
-    return Promise.resolve().then(() =>
-        runAlignmentSync(seq1, seq2, seqType, gapMath, gapOp, gapEx, matrixName, customMatch, customMismatch, algoType, databaseSize, expectThresh)
-    );
+    return Promise.resolve().then(() => runAlignmentSync(params));
 };
-

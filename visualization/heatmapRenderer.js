@@ -11,8 +11,10 @@ export function setupMatrixUI() {
 
     if (btnTable && btnHeatmap) {
         btnTable.addEventListener('click', () => {
-            btnTable.className = "px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm";
-            btnHeatmap.className = "px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted hover:text-black dark:hover:text-white";
+            btnTable.className =
+                'px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm';
+            btnHeatmap.className =
+                'px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted hover:text-black dark:hover:text-white';
             contentTable.classList.remove('hidden');
             contentTable.classList.add('block');
             contentHeatmap.classList.remove('flex', 'flex-col');
@@ -20,8 +22,10 @@ export function setupMatrixUI() {
         });
 
         btnHeatmap.addEventListener('click', () => {
-            btnHeatmap.className = "px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm";
-            btnTable.className = "px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted hover:text-black dark:hover:text-white";
+            btnHeatmap.className =
+                'px-3 py-1 text-xs font-medium rounded-md transition-colors bg-black text-white dark:bg-white dark:text-black shadow-sm';
+            btnTable.className =
+                'px-3 py-1 text-xs font-medium rounded-md transition-colors text-muted hover:text-black dark:hover:text-white';
             contentHeatmap.classList.remove('hidden');
             contentHeatmap.classList.add('flex', 'flex-col');
             contentTable.classList.remove('block');
@@ -38,9 +42,11 @@ export function renderDPTable(result) {
     if (!dp || !dp.H) return;
 
     const { H, TB, n, m } = dp;
-    const isLocal = result.metadata ? (result.metadata.algorithm.includes('Local') || result.metadata.algorithm.includes('BLAST')) : (result.algorithm && result.algorithm.includes('Local'));
+    const isLocal = result.metadata
+        ? result.metadata.algorithm.includes('Local') || result.metadata.algorithm.includes('BLAST')
+        : result.algorithm && result.algorithm.includes('Local');
     const tracePath = result.tracePath || [];
-    const traceSet = new Set(tracePath.map(p => `${p[0]},${p[1]}`));
+    const traceSet = new Set(tracePath.map((p) => `${p[0]},${p[1]}`));
 
     // FIXED: Use raw original sequences for headers — never gap-stripped aligned sequences.
     // Gap-stripped aligned seqs can be shorter than n/m causing undefined on the last columns.
@@ -83,16 +89,20 @@ export function renderDPTable(result) {
             <tr>
                 <th style="${thStyle()}"></th>
                 <th style="${thStyle()}"><span class="text-muted">−</span></th>
-                ${Array.from({ length: m }, (_, j) =>
-        `<th style="${thStyle()}"><span class="text-black dark:text-gray-200" style="font-size:12px;">${seq2[j]}</span><sub class="text-muted" style="font-size:9px;">${j + 1}</sub></th>`
-    ).join('')}
+                ${Array.from(
+                    { length: m },
+                    (_, j) =>
+                        `<th style="${thStyle()}"><span class="text-black dark:text-gray-200" style="font-size:12px;">${seq2[j]}</span><sub class="text-muted" style="font-size:9px;">${j + 1}</sub></th>`
+                ).join('')}
             </tr>
         </thead>
         <tbody>`;
 
     for (let i = 0; i <= n; i++) {
-        const rowLabel = i === 0 ? '<span class="text-muted">−</span>'
-            : `<span class="text-black dark:text-gray-200" style="font-size:12px;">${seq1[i - 1]}</span><sub class="text-muted" style="font-size:9px;">${i}</sub>`;
+        const rowLabel =
+            i === 0
+                ? '<span class="text-muted">−</span>'
+                : `<span class="text-black dark:text-gray-200" style="font-size:12px;">${seq1[i - 1]}</span><sub class="text-muted" style="font-size:9px;">${i}</sub>`;
 
         html += `<tr>
             <th style="${thStyle()}">${rowLabel}</th>`;
@@ -106,7 +116,7 @@ export function renderDPTable(result) {
             const displayVal = Number.isInteger(val) ? val : parseFloat(val.toFixed(1));
 
             // Score based color intensity
-            let intensity = Math.min(1, Math.max(0, val / scoreRange));
+            const intensity = Math.min(1, Math.max(0, val / scoreRange));
             let cellBg = 'background:var(--surface);';
             let cellBorder = ''; // Border is now handled definitively by .dp-cell CSS with !important
             let cellClass = 'dp-cell';
@@ -116,8 +126,10 @@ export function renderDPTable(result) {
                 cellBg = ''; // Handled by CSS
                 cellBorder = ''; // Handled by CSS
             } else {
-                if (val > 0) cellBg = `background:rgba(16, 185, 129, ${intensity * 0.4});`; // Greenish
-                else if (val < 0) cellBg = `background:rgba(239, 68, 68, ${Math.min(1, Math.abs(val / minScore)) * 0.4});`; // Reddish
+                if (val > 0)
+                    cellBg = `background:rgba(16, 185, 129, ${intensity * 0.4});`; // Greenish
+                else if (val < 0)
+                    cellBg = `background:rgba(239, 68, 68, ${Math.min(1, Math.abs(val / minScore)) * 0.4});`; // Reddish
             }
 
             let scoreColor = 'var(--foreground)';
@@ -133,9 +145,12 @@ export function renderDPTable(result) {
             } else if (tbH === 0) {
                 arrows = ''; // Stop
             } else {
-                if (tbH === 1) arrows = `<span style="color:#0d9488;font-size:13px;" title="Diagonal (match/mismatch)">&#8598;</span>`;
-                else if (tbH === 2) arrows = `<span style="color:#2563eb;font-size:13px;" title="Up (gap in Seq2)">&#8593;</span>`;
-                else if (tbH === 3) arrows = `<span style="color:#d97706;font-size:13px;" title="Left (gap in Seq1)">&#8592;</span>`;
+                if (tbH === 1)
+                    arrows = `<span style="color:#0d9488;font-size:13px;" title="Diagonal (match/mismatch)">&#8598;</span>`;
+                else if (tbH === 2)
+                    arrows = `<span style="color:#2563eb;font-size:13px;" title="Up (gap in Seq2)">&#8593;</span>`;
+                else if (tbH === 3)
+                    arrows = `<span style="color:#d97706;font-size:13px;" title="Left (gap in Seq1)">&#8592;</span>`;
             }
 
             html += `<td class="${cellClass}" style="${cellBorder}${cellBg}">
@@ -201,14 +216,18 @@ export function renderHeatmap(result) {
     const yLabels = ['-', ...Array.from({ length: n }, (_, i) => `${seq1[i]}(${i + 1})`)];
     const xLabels = ['-', ...Array.from({ length: m }, (_, j) => `${seq2[j]}(${j + 1})`)];
 
-    const data = [{
-        z: zData, x: xLabels, y: yLabels,
-        type: 'heatmap',
-        colorscale: 'RdYlGn',
-        reversescale: false,
-        hoverongaps: false,
-        hovertemplate: 'Seq2: %{x}<br>Seq1: %{y}<br>Score: %{z}<extra></extra>'
-    }];
+    const data = [
+        {
+            z: zData,
+            x: xLabels,
+            y: yLabels,
+            type: 'heatmap',
+            colorscale: 'RdYlGn',
+            reversescale: false,
+            hoverongaps: false,
+            hovertemplate: 'Seq2: %{x}<br>Seq1: %{y}<br>Score: %{z}<extra></extra>'
+        }
+    ];
 
     const isDark = document.documentElement.classList.contains('dark');
     const layout = {
@@ -224,6 +243,7 @@ export function renderHeatmap(result) {
     if (window.Plotly) {
         Plotly.newPlot('plotlyMatrix', data, layout, { responsive: true, displayModeBar: false });
     } else {
-        container.innerHTML = '<div class="text-muted font-sans p-4 text-center text-sm">Plotly.js not loaded — add the CDN script to index.html.</div>';
+        container.innerHTML =
+            '<div class="text-muted font-sans p-4 text-center text-sm">Plotly.js not loaded — add the CDN script to index.html.</div>';
     }
 }

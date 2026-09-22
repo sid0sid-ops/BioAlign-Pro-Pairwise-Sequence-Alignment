@@ -24,7 +24,7 @@ export function calculateIdentityFromAlignment(seq1, seq2) {
     }
 
     let matches = 0;
-    let length = seq1.length;
+    const length = seq1.length;
 
     for (let i = 0; i < length; i++) {
         if (seq1[i] === seq2[i]) matches++;

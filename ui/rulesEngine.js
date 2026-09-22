@@ -10,6 +10,7 @@ export function getDerivedUIState(state) {
         scoringModeToggle: false,
         matrixSelector: true,
         gapOpenExtend: true,
+        gapExtend: state.gapMode === 'affine',
         forceAdvancedOptionsOpen: false,
         endGaps: false
     };
@@ -19,70 +20,59 @@ export function getDerivedUIState(state) {
     };
 
     const labels = {
-        gapModeReason: "",
-        matrixHint: ""
+        gapModeReason: '',
+        matrixHint: ''
     };
 
-    // ALIGNMENT TRUTH
-    if (state.alignmentType === 'local') {
-        locks.gapMode = true;
-        labels.gapModeReason = "Locked to Affine by Smith-Waterman model";
-        visibility.gapModeSelector = true; // Keep visible but locked
-        visibility.forceAdvancedOptionsOpen = true; // Auto-open for expert mode
-    } else if (state.alignmentType === 'blast') {
-        locks.gapMode = true;
-        labels.gapModeReason = "Locked to Linear by Karlin-Altschul statistics";
-        visibility.gapModeSelector = true;
-        visibility.wordSize = false;
-        visibility.eValue = false;
-        visibility.database = false;
+    // ALIGNMENT CONFIGURATION
+    locks.gapMode = false;
+    visibility.gapModeSelector = true;
+
+    if (state.alignmentType === 'blast') {
+        visibility.wordSize = true;
+        visibility.eValue = true;
+        visibility.database = true;
         visibility.forceAdvancedOptionsOpen = true;
     }
 
     // SEQUENCE SCORING TRUTH
-    if (state.gapMode === 'linear') {
-        // NCBI Strict Mode (matches screenshots)
-        visibility.scoringModeToggle = false;
-        visibility.matrixSelector = false;
-        visibility.dnaMatrices = false;
-        visibility.proteinMatrices = false;
-
-        if (state.sequenceType === 'dna') {
-            visibility.matchMismatch = true;
-        } else {
-            visibility.matchMismatch = false;
-        }
-    } else {
-        // EMBOSS / Typical Mode (Strict Matrix only)
+    if (state.sequenceType === 'protein') {
         visibility.scoringModeToggle = false;
         visibility.matchMismatch = false;
         visibility.matrixSelector = true;
-
-        if (state.sequenceType === 'dna') {
-            visibility.proteinMatrices = false;
-            visibility.dnaMatrices = true;
-        } else { // protein
-            visibility.proteinMatrices = true;
-            visibility.dnaMatrices = false;
+        visibility.proteinMatrices = true;
+        visibility.dnaMatrices = false;
+    } else {
+        // dna
+        visibility.proteinMatrices = false;
+        visibility.dnaMatrices = true;
+        visibility.scoringModeToggle = true;
+        if (state.scoringMode === 'CUSTOM') {
+            visibility.matchMismatch = true;
+            visibility.matrixSelector = false;
+        } else {
+            visibility.matchMismatch = false;
+            visibility.matrixSelector = true;
         }
     }
 
     // MATRIX DESCRIPTIONS
     const matrixHints = {
-        'BLOSUM90': "Very strict — Closely related proteins",
-        'BLOSUM80': "Strict — High similarity",
-        'BLOSUM62': "Balanced (default) — General purpose",
-        'BLOSUM50': "Relaxed — Moderate divergence",
-        'BLOSUM45': "Very relaxed — Distant homologs",
-        'PAM30': "Very strict — Short sequence alignments",
-        'PAM70': "Medium strict — Moderate divergence",
-        'PAM250': "Very relaxed — Highly divergent sequences",
-        'DNAFULL': "Standard pure identity scoring model",
-        'BLASTN': "Heuristic localized DNA scoring model"
+        BLOSUM90: 'Very strict — Closely related proteins',
+        BLOSUM80: 'Strict — High similarity',
+        BLOSUM62: 'Balanced (default) — General purpose',
+        BLOSUM50: 'Relaxed — Moderate divergence',
+        BLOSUM45: 'Very relaxed — Distant homologs',
+        PAM30: 'Very strict — Short sequence alignments',
+        PAM70: 'Medium strict — Moderate divergence',
+        PAM250: 'Very relaxed — Highly divergent sequences',
+        DNAFULL: 'Standard pure identity scoring model',
+        BLASTN: 'Heuristic localized DNA scoring model'
     };
-    labels.matrixHint = matrixHints[state.parameters.matrix] || "";
+    labels.matrixHint = matrixHints[state.parameters.matrix] || '';
 
-    visibility.endGaps = (state.gapMode === 'affine');
+    // End gaps are strictly applicable to Global Alignment (Needleman-Wunsch) with affine gaps
+    visibility.endGaps = state.alignmentType === 'global' && state.gapMode === 'affine';
 
     return { visibility, locks, labels };
 }

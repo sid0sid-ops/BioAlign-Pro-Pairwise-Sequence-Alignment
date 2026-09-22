@@ -4,8 +4,9 @@
  * @pipelineLocation Post-computation tier. Runs immediately after the DP matrix is filled to generate human-readable strings.
  * @changeImpact Modifying the directional prioritization (e.g. preferring diagonal over horizontal on ties) will alter the alignment aesthetic and might break edge-case alignments.
  */
-import { getMatrixScore } from './scoringMatrix.js';
+
 import { ALIGNMENT_TB } from './contracts.js';
+import { getMatrixScore } from './scoringMatrix.js';
 
 export function performTraceback(s1, s2, dp, matrixName, customMatch, customMismatch) {
     const { H, TB, n, m, isLocal, maxI, maxJ, gapMath } = dp;
@@ -17,16 +18,16 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
     let matches = 0;
     let gaps = 0;
     let positives = 0;
-    let tracePath = [];
+    const tracePath = [];
 
     let i = maxI;
     let j = maxJ;
 
     // get initial state: determine which affine matrix led to the final max score
-    let tbStart = TB[maxI * W + maxJ];
+    const tbStart = TB[maxI * W + maxJ];
     // In our encoded bits: state 1=M, 2=Ix, 3=Iy
     // Because we use tbH from 1 to 3 in affine gap (0 is STOP)
-    let currentState = (tbStart & 3);
+    let currentState = tbStart & 3;
 
     // Pad trailing unaligned ends with gaps (from n,m to maxI,maxJ)
     if (!isLocal && gapMath === 'affine') {
@@ -62,28 +63,44 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
 
         const tbH = tb & 3;
 
-        if (isLocal && tbH === ALIGNMENT_TB.STOP) break;
+        if (isLocal && (tbH === ALIGNMENT_TB.STOP || H[idx] <= 0)) break;
         if (i === 0 && j === 0) break;
 
         if (gapMath === 'linear') {
-            if (isLocal && tbH === ALIGNMENT_TB.STOP) break;
+            if (isLocal && (tbH === ALIGNMENT_TB.STOP || H[idx] <= 0)) break;
             if (tbH === ALIGNMENT_TB.DIAGONAL) {
                 if (i <= 0 || j <= 0) break; // Defensive bound check
-                const a = s1[i - 1]; const b = s2[j - 1];
-                aligned1 = a + aligned1; aligned2 = b + aligned2;
+                const a = s1[i - 1];
+                const b = s2[j - 1];
+                aligned1 = a + aligned1;
+                aligned2 = b + aligned2;
                 const score = getMatrixScore(a, b, matrixName, customMatch, customMismatch);
-                if (a === b) { matchLine = '|' + matchLine; matches++; }
-                else if (score > 0) { matchLine = ':' + matchLine; }
-                else { matchLine = ' ' + matchLine; }
+                if (a === b) {
+                    matchLine = '|' + matchLine;
+                    matches++;
+                } else if (score > 0) {
+                    matchLine = ':' + matchLine;
+                } else {
+                    matchLine = '.' + matchLine;
+                }
                 if (score > 0) positives++;
-                i--; j--;
+                i--;
+                j--;
             } else if (tbH === ALIGNMENT_TB.UP) {
-                aligned1 = s1[i - 1] + aligned1; aligned2 = '-' + aligned2;
-                matchLine = ' ' + matchLine; gaps++; i--;
+                aligned1 = s1[i - 1] + aligned1;
+                aligned2 = '-' + aligned2;
+                matchLine = ' ' + matchLine;
+                gaps++;
+                i--;
             } else if (tbH === ALIGNMENT_TB.LEFT) {
-                aligned1 = '-' + aligned1; aligned2 = s2[j - 1] + aligned2;
-                matchLine = ' ' + matchLine; gaps++; j--;
-            } else { break; }
+                aligned1 = '-' + aligned1;
+                aligned2 = s2[j - 1] + aligned2;
+                matchLine = ' ' + matchLine;
+                gaps++;
+                j--;
+            } else {
+                break;
+            }
         } else {
             // Affine Gap Logic with true matrix states M, Ix, Iy
             // Bit Layout Documentation:
@@ -97,31 +114,43 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
 
             if (currentState === ALIGNMENT_TB.DIAGONAL) {
                 if (i <= 0 || j <= 0) break; // Defensive bound check
-                const a = s1[i - 1]; const b = s2[j - 1];
-                aligned1 = a + aligned1; aligned2 = b + aligned2;
+                const a = s1[i - 1];
+                const b = s2[j - 1];
+                aligned1 = a + aligned1;
+                aligned2 = b + aligned2;
                 const score = getMatrixScore(a, b, matrixName, customMatch, customMismatch);
-                if (a === b) { matchLine = '|' + matchLine; matches++; }
-                else if (score > 0) { matchLine = ':' + matchLine; }
-                else { matchLine = ' ' + matchLine; }
+                if (a === b) {
+                    matchLine = '|' + matchLine;
+                    matches++;
+                } else if (score > 0) {
+                    matchLine = ':' + matchLine;
+                } else {
+                    matchLine = '.' + matchLine;
+                }
                 if (score > 0) positives++;
 
                 // Which matrix led us to M?
                 // tbM is 0 (M), 1 (Ix), or 2 (Iy)
-                currentState = tbM === 0 ? ALIGNMENT_TB.DIAGONAL : (tbM === 1 ? ALIGNMENT_TB.UP : ALIGNMENT_TB.LEFT);
-                i--; j--;
-            }
-            else if (currentState === ALIGNMENT_TB.UP) {
-                aligned1 = s1[i - 1] + aligned1; aligned2 = '-' + aligned2;
-                matchLine = ' ' + matchLine; gaps++;
+                currentState = tbM === 0 ? ALIGNMENT_TB.DIAGONAL : tbM === 1 ? ALIGNMENT_TB.UP : ALIGNMENT_TB.LEFT;
+                i--;
+                j--;
+            } else if (currentState === ALIGNMENT_TB.UP) {
+                aligned1 = s1[i - 1] + aligned1;
+                aligned2 = '-' + aligned2;
+                matchLine = ' ' + matchLine;
+                gaps++;
                 currentState = tbIx === 1 ? ALIGNMENT_TB.UP : ALIGNMENT_TB.DIAGONAL;
                 i--;
-            }
-            else if (currentState === ALIGNMENT_TB.LEFT) {
-                aligned1 = '-' + aligned1; aligned2 = s2[j - 1] + aligned2;
-                matchLine = ' ' + matchLine; gaps++;
+            } else if (currentState === ALIGNMENT_TB.LEFT) {
+                aligned1 = '-' + aligned1;
+                aligned2 = s2[j - 1] + aligned2;
+                matchLine = ' ' + matchLine;
+                gaps++;
                 currentState = tbIy === 1 ? ALIGNMENT_TB.LEFT : ALIGNMENT_TB.DIAGONAL;
                 j--;
-            } else { break; }
+            } else {
+                break;
+            }
         }
     }
     tracePath.push([i, j]);
@@ -148,4 +177,3 @@ export function performTraceback(s1, s2, dp, matrixName, customMatch, customMism
         startJ: j
     };
 }
-

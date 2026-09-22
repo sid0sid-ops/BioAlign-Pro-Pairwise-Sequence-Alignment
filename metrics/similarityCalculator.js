@@ -8,53 +8,42 @@ import { getMatrixScore } from '../core/scoringMatrix.js';
 
 export function calculateSimilarity(alignedSeq1, alignedSeq2, matrixName) {
     let positives = 0;
-    let validPositions = 0;
+    const totalLength = alignedSeq1.length;
+    if (totalLength === 0) return '0.0';
 
-    for (let i = 0; i < alignedSeq1.length; i++) {
+    for (let i = 0; i < totalLength; i++) {
         const a = alignedSeq1[i];
         const b = alignedSeq2[i];
 
         if (a === '-' || b === '-') continue;
 
-        validPositions++;
-
         try {
             const score = getMatrixScore(a, b, matrixName);
             if (score > 0) positives++;
-        } catch (err) {
-            continue;
-        }
+        } catch (err) {}
     }
 
-    if (validPositions === 0) return '0.00';
-    const pct = (positives / validPositions) * 100;
-    return isFinite(pct) ? pct.toFixed(2) : '0.00';
+    const pct = (positives / totalLength) * 100;
+    return isFinite(pct) ? pct.toFixed(1) : '0.0';
 }
 
 export function calculateSimilarityDetailed(alignedSeq1, alignedSeq2, matrixName) {
     let positives = 0;
-    let validPositions = 0;
+    const totalLength = alignedSeq1.length;
 
-    for (let i = 0; i < alignedSeq1.length; i++) {
+    for (let i = 0; i < totalLength; i++) {
         const a = alignedSeq1[i];
         const b = alignedSeq2[i];
 
         if (a === '-' || b === '-') continue;
 
-        validPositions++;
-
         try {
             const score = getMatrixScore(a, b, matrixName);
             if (score > 0) positives++;
-        } catch {
-            continue;
-        }
+        } catch {}
     }
 
-    const similarity = validPositions > 0
-        ? ((positives / validPositions) * 100).toFixed(2)
-        : '0.00';
+    const similarity = totalLength > 0 ? ((positives / totalLength) * 100).toFixed(1) : '0.0';
 
-    return { positives, validPositions, similarity };
+    return { positives, totalLength, similarity };
 }
-

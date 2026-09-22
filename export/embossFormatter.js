@@ -11,14 +11,14 @@
  */
 
 const matrixCitations = {
-    'BLOSUM62': 'Henikoff & Henikoff, PNAS 1992',
-    'BLOSUM45': 'Henikoff & Henikoff, PNAS 1992',
-    'BLOSUM80': 'Henikoff & Henikoff, PNAS 1992',
-    'PAM250': 'Dayhoff et al. 1978',
-    'PAM30': 'Dayhoff et al. 1978',
-    'PAM70': 'Dayhoff et al. 1978',
-    'DNAFULL': 'EMBOSS / EDNAFULL',
-    'BLASTN': 'Altschul et al. 1990'
+    BLOSUM62: 'Henikoff & Henikoff, PNAS 1992',
+    BLOSUM45: 'Henikoff & Henikoff, PNAS 1992',
+    BLOSUM80: 'Henikoff & Henikoff, PNAS 1992',
+    PAM250: 'Dayhoff et al. 1978',
+    PAM30: 'Dayhoff et al. 1978',
+    PAM70: 'Dayhoff et al. 1978',
+    DNAFULL: 'EMBOSS / EDNAFULL',
+    BLASTN: 'Altschul et al. 1990'
 };
 
 function generateFilename(extension, s1Name, s2Name, algo) {
@@ -37,8 +37,12 @@ export function downloadAlignmentTXT(res) {
     const s1Seq = res.additional_metrics.alignedSeq1.replace(/-/g, '');
     const s2Seq = res.additional_metrics.alignedSeq2.replace(/-/g, '');
 
-    const algoName = res.additional_metrics.algoType === 'global' ? 'needle' :
-        (res.additional_metrics.algoType === 'local' ? 'water' : 'blast');
+    const algoName =
+        res.additional_metrics.algoType === 'global'
+            ? 'needle'
+            : res.additional_metrics.algoType === 'local'
+              ? 'water'
+              : 'blast';
 
     const isProtein = res.sequence_type === 'protein';
     const typeStr = isProtein ? 'Protein' : 'DNA';
@@ -52,15 +56,18 @@ export function downloadAlignmentTXT(res) {
 
     const timestamp = new Date().toISOString();
 
+    const isLinear = res.additional_metrics.gapMath === 'linear' || res.metadata?.gapModel === 'linear';
+    const isCustom = res.additional_metrics.matrixName === 'CUSTOM';
+    const matchScore = res.metadata?.customMatch ?? res.additional_metrics.customMatch ?? 1;
+    const mismatchPenalty = res.metadata?.customMismatch ?? res.additional_metrics.customMismatch ?? -3;
+
     let content = `########################################
 # BioAlign-Pro Alignment Report
 # Program: ${algoName}
 # Rundate: ${timestamp}
 # Commandline: ${algoName}
 #    -datafile ${res.additional_metrics.matrixName}
-#    -gapopen ${gapOp}
-#    -gapextend ${gapEx}
-# Align_format: pair
+${isCustom ? `#    -match ${matchScore}\n#    -mismatch ${mismatchPenalty}\n` : ''}${isLinear ? `#    -gapmode linear\n#    -gapopen ${gapOp}\n` : `#    -gapopen ${gapOp}\n#    -gapextend ${gapEx}\n`}# Align_format: pair
 ########################################
 
 #=======================================
@@ -68,37 +75,38 @@ export function downloadAlignmentTXT(res) {
 # 1: ${s1Name}
 # 2: ${s2Name}
 # Matrix: ${res.additional_metrics.matrixName}
+${isCustom ? `# Match_score: ${matchScore}\n# Mismatch_penalty: ${mismatchPenalty}\n` : ''}# Gap_model: ${isLinear ? 'Linear' : 'Affine'}
 # Gap_penalty: ${gapOp}
-# Extend_penalty: ${gapEx}
-#
+${isLinear ? '' : `# Extend_penalty: ${gapEx}\n`}#
 # Length: ${res.alignment_length}
-# Identity: ${res.additional_metrics.matches}/${res.alignment_length} (${res.identity_percent}%)
-# Similarity: ${Math.round((parseFloat(similarities) / 100) * res.alignment_length)}/${res.alignment_length} (${similarities}%)
+# Identity: ${res.additional_metrics.matches}/${res.alignment_length} (${((res.additional_metrics.matches / res.alignment_length) * 100).toFixed(1)}%)
+# Similarity: ${res.additional_metrics.positives !== undefined ? res.additional_metrics.positives : Math.round((parseFloat(similarities) / 100) * res.alignment_length)}/${res.alignment_length} (${res.additional_metrics.positives !== undefined ? ((res.additional_metrics.positives / res.alignment_length) * 100).toFixed(1) : parseFloat(similarities).toFixed(1)}%)
 # Gaps: ${res.gaps}/${res.alignment_length} (${((res.gaps / res.alignment_length) * 100).toFixed(1)}%)
 # Score: ${res.alignment_score}
 ${res.additional_metrics.statsAvailable && res.additional_metrics.bit_score !== undefined ? `# Bit_Score: ${res.additional_metrics.bit_score}\n# E_Value: ${res.additional_metrics.e_value}\n` : ''}#=======================================
 
 # Sequence 1 Metadata
 # Query: ${s1Name}
-# Length: ${s1Seq.length}
+# Length: ${res.additional_metrics.rawSeq1 ? res.additional_metrics.rawSeq1.length : s1Seq.length}
 # Type: ${typeStr}
 
 # Sequence 2 Metadata
 # Subject: ${s2Name}
-# Length: ${s2Seq.length}
+# Length: ${res.additional_metrics.rawSeq2 ? res.additional_metrics.rawSeq2.length : s2Seq.length}
 # Type: ${typeStr}
 
 # Reproducibility Parameters
 # Algorithm: ${algoName === 'needle' ? 'Needleman-Wunsch' : algoName === 'water' ? 'Smith-Waterman' : 'BLAST-like'}
 # Matrix: ${res.additional_metrics.matrixName}
+${isCustom ? `# Match score: ${matchScore}\n# Mismatch penalty: ${mismatchPenalty}\n` : ''}# Gap model: ${isLinear ? 'Linear (Single Penalty)' : 'Affine (Open / Extend)'}
 # Gap open: ${gapOp}
-# Gap extend: ${gapEx}
+# Gap extend: ${isLinear ? 'N/A' : gapEx}
 # Alignment type: ${res.additional_metrics.algoType === 'global' ? 'Global' : 'Local'}
-# Sequence_1_Length: ${s1Seq.length}
-# Sequence_2_Length: ${s2Seq.length}
-# Alignment_Coverage_1: ${(res.additional_metrics.alignedSeq1.length / s1Seq.length * 100).toFixed(1)}%
-# Alignment_Coverage_2: ${(res.additional_metrics.alignedSeq1.length / s2Seq.length * 100).toFixed(1)}%
-# Query_Coverage: ${(res.additional_metrics.alignedSeq1.length / Math.min(s1Seq.length, s2Seq.length) * 100).toFixed(1)}%
+# Sequence_1_Length: ${res.additional_metrics.rawSeq1 ? res.additional_metrics.rawSeq1.length : s1Seq.length}
+# Sequence_2_Length: ${res.additional_metrics.rawSeq2 ? res.additional_metrics.rawSeq2.length : s2Seq.length}
+# Alignment_Coverage_1: ${((s1Seq.length / (res.additional_metrics.rawSeq1 ? res.additional_metrics.rawSeq1.length : s1Seq.length)) * 100).toFixed(1)}%
+# Alignment_Coverage_2: ${((s2Seq.length / (res.additional_metrics.rawSeq2 ? res.additional_metrics.rawSeq2.length : s2Seq.length)) * 100).toFixed(1)}%
+# Query_Coverage: ${((s1Seq.length / (res.additional_metrics.rawSeq1 ? res.additional_metrics.rawSeq1.length : s1Seq.length)) * 100).toFixed(1)}%
 # Matrix_Source: ${res.additional_metrics.matrixName} (${matrixCitations[res.additional_metrics.matrixName] || 'Unknown'})
 
 `;
@@ -125,10 +133,10 @@ ${res.additional_metrics.statsAvailable && res.additional_metrics.bit_score !== 
         const name2Pad = s2Name.padEnd(leftPadLength, ' ');
 
         const p1Str = pos1.toString().padStart(5, ' ');
-        const p1EndStr = (chunk1.replace(/-/g, '').length === 0) ? '' : endPos1.toString();
+        const p1EndStr = chunk1.replace(/-/g, '').length === 0 ? '' : endPos1.toString();
 
         const p2Str = pos2.toString().padStart(5, ' ');
-        const p2EndStr = (chunk2.replace(/-/g, '').length === 0) ? '' : endPos2.toString();
+        const p2EndStr = chunk2.replace(/-/g, '').length === 0 ? '' : endPos2.toString();
 
         content += `${name1Pad}   ${p1Str} ${chunk1}   ${p1EndStr}\n`;
         content += `${''.padEnd(leftPadLength + 9, ' ')}${chunkM}\n`;
@@ -175,14 +183,15 @@ export function downloadAlignmentCSV(res) {
     csvContent += `Gap Open,${gapOp}\n`;
     csvContent += `Gap Extend,${gapEx}\n`;
 
-    const s1SeqLen = res.additional_metrics.alignedSeq1.replace(/-/g, '').length;
-    const s2SeqLen = res.additional_metrics.alignedSeq2.replace(/-/g, '').length;
-    const algLen = res.additional_metrics.alignedSeq1.length;
-    csvContent += `Sequence_1_Length,${s1SeqLen}\n`;
-    csvContent += `Sequence_2_Length,${s2SeqLen}\n`;
-    csvContent += `Alignment_Coverage_1 %,${(algLen / s1SeqLen * 100).toFixed(1)}\n`;
-    csvContent += `Alignment_Coverage_2 %,${(algLen / s2SeqLen * 100).toFixed(1)}\n`;
-    csvContent += `Query_Coverage %,${(algLen / Math.min(s1SeqLen, s2SeqLen) * 100).toFixed(1)}\n`;
+    const rawS1 = res.additional_metrics.rawSeq1 || res.additional_metrics.alignedSeq1.replace(/-/g, '');
+    const rawS2 = res.additional_metrics.rawSeq2 || res.additional_metrics.alignedSeq2.replace(/-/g, '');
+    const s1AlignedRes = res.additional_metrics.alignedSeq1.replace(/-/g, '').length;
+    const s2AlignedRes = res.additional_metrics.alignedSeq2.replace(/-/g, '').length;
+    csvContent += `Sequence_1_Length,${rawS1.length}\n`;
+    csvContent += `Sequence_2_Length,${rawS2.length}\n`;
+    csvContent += `Alignment_Coverage_1 %,${((s1AlignedRes / rawS1.length) * 100).toFixed(1)}\n`;
+    csvContent += `Alignment_Coverage_2 %,${((s2AlignedRes / rawS2.length) * 100).toFixed(1)}\n`;
+    csvContent += `Query_Coverage %,${((s1AlignedRes / rawS1.length) * 100).toFixed(1)}\n`;
     csvContent += `Matrix_Source,${matrixCitations[res.additional_metrics.matrixName] || 'Unknown'}\n`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -198,6 +207,10 @@ export function downloadAlignmentJSON(res) {
     const s1Name = window.currentS1Name || 'Sequence_1';
     const s2Name = window.currentS2Name || 'Sequence_2';
     const algoName = res.additional_metrics.algoType;
+    const rawS1 = res.additional_metrics.rawSeq1 || res.additional_metrics.alignedSeq1.replace(/-/g, '');
+    const rawS2 = res.additional_metrics.rawSeq2 || res.additional_metrics.alignedSeq2.replace(/-/g, '');
+    const s1AlignedRes = res.additional_metrics.alignedSeq1.replace(/-/g, '').length;
+    const s2AlignedRes = res.additional_metrics.alignedSeq2.replace(/-/g, '').length;
 
     const exportObj = {
         metadata: {
@@ -216,17 +229,26 @@ export function downloadAlignmentJSON(res) {
             score: res.alignment_score,
             length: res.alignment_length,
             matches: res.additional_metrics.matches,
+            positives: res.additional_metrics.positives,
             gaps: res.gaps,
-            identity_percent: parseFloat(res.identity_percent),
-            similarity_percent: res.similarity_percent ? parseFloat(res.similarity_percent) : null,
-            ...(res.additional_metrics.statsAvailable && res.additional_metrics.bit_score !== undefined ? {
-                bit_score: res.additional_metrics.bit_score,
-                e_value: res.additional_metrics.e_value
-            } : {}),
-            sequence_1_length: res.additional_metrics.alignedSeq1.replace(/-/g, '').length,
-            sequence_2_length: res.additional_metrics.alignedSeq2.replace(/-/g, '').length,
-            alignment_coverage_1: parseFloat((res.additional_metrics.alignedSeq1.length / res.additional_metrics.alignedSeq1.replace(/-/g, '').length * 100).toFixed(1)),
-            alignment_coverage_2: parseFloat((res.additional_metrics.alignedSeq1.length / res.additional_metrics.alignedSeq2.replace(/-/g, '').length * 100).toFixed(1)),
+            identity_percent: parseFloat(((res.additional_metrics.matches / res.alignment_length) * 100).toFixed(1)),
+            similarity_percent:
+                res.additional_metrics.positives !== undefined
+                    ? parseFloat(((res.additional_metrics.positives / res.alignment_length) * 100).toFixed(1))
+                    : res.similarity_percent
+                      ? parseFloat(res.similarity_percent)
+                      : null,
+            ...(res.additional_metrics.statsAvailable && res.additional_metrics.bit_score !== undefined
+                ? {
+                      bit_score: res.additional_metrics.bit_score,
+                      e_value: res.additional_metrics.e_value
+                  }
+                : {}),
+            sequence_1_length: rawS1.length,
+            sequence_2_length: rawS2.length,
+            alignment_coverage_1: parseFloat(((s1AlignedRes / rawS1.length) * 100).toFixed(1)),
+            alignment_coverage_2: parseFloat(((s2AlignedRes / rawS2.length) * 100).toFixed(1)),
+            query_coverage: parseFloat(((s1AlignedRes / rawS1.length) * 100).toFixed(1)),
             matrix_source: matrixCitations[res.additional_metrics.matrixName] || 'Unknown'
         },
         alignment: {

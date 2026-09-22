@@ -18,7 +18,7 @@ export function updateResultUI(res) {
         resultsPanel.style.display = '';
     }
 
-    const el = id => document.getElementById(id);
+    const el = (id) => document.getElementById(id);
 
     // Safe accessors — prefer new contract fields, fall back to legacy bridge
     const score = res.alignment_score ?? res.stats?.rawScore ?? 0;
@@ -63,19 +63,41 @@ export function updateResultUI(res) {
             const ev = Number(eValue);
             el('resEValue').innerText = ev < 1e-99 ? '0.0' : ev < 0.001 ? ev.toExponential(2) : ev.toFixed(4);
         }
-        [bsdDiv, bsdSep, evDiv, evSep, statsAfterSep].forEach(el => { if (el) el.style.display = ''; });
+        [bsdDiv, bsdSep, evDiv, evSep, statsAfterSep].forEach((el) => {
+            if (el) el.style.display = '';
+        });
     } else {
-        [bsdDiv, bsdSep, evDiv, evSep, statsAfterSep].forEach(el => { if (el) el.style.display = 'none'; });
+        [bsdDiv, bsdSep, evDiv, evSep, statsAfterSep].forEach((el) => {
+            if (el) el.style.display = 'none';
+        });
     }
+
+    const gapModel = res.metadata?.gapModel || res.additional_metrics?.gapMath || 'affine';
+    const gapOp = res.metadata?.gapOpen ?? res.additional_metrics?.gapOpen ?? 10;
+    const gapEx = res.metadata?.gapExtend ?? res.additional_metrics?.gapExtend ?? 0.5;
+
+    if (el('resGapModel')) {
+        el('resGapModel').innerText = gapModel === 'linear' ? `Linear (${gapOp})` : `Affine (${gapOp} / ${gapEx})`;
+    }
+
+    const algoType = res.additional_metrics?.algoType || 'global';
+    const algoNames = {
+        global: 'Global Alignment (Needleman-Wunsch · EMBOSS needle)',
+        local: 'Local Alignment (Smith-Waterman · EMBOSS water)',
+        blast: 'BLAST-like Search (Heuristic · NCBI BLAST)'
+    };
+    const prettyAlgo = algoNames[algoType] || algoLabel;
+
+    const gapDesc =
+        gapModel === 'linear' ? `Linear Gap (Penalty: ${gapOp})` : `Affine Gap (Open: ${gapOp}, Extend: ${gapEx})`;
 
     const successMsg = el('successMessage');
     if (successMsg) {
         successMsg.innerHTML =
             `<i class="fa-solid fa-check-circle"></i> ` +
-            `${algoLabel} · Matrix: ${matrixName} · ` +
-            `Score: ${parseFloat(score.toFixed(1))} · Identity: ${identityPct}%`;
+            `<b>${prettyAlgo}</b> · Matrix: <b>${matrixName}</b> · <b>${gapDesc}</b> · ` +
+            `Score: <b>${parseFloat(score.toFixed(1))}</b> · Identity: <b>${identityPct}%</b>`;
     }
-
 
     // PHASE 2: Visualization Layer
     try {
@@ -84,22 +106,21 @@ export function updateResultUI(res) {
 
         el('chartContainer')?.classList.remove('hidden');
 
-            if (res.dp?.H) {
-        heatmapModule.renderDPTable(res);
-    } else {
-        const dpCon = el('dpTableContainer');
-        if (dpCon) dpCon.innerHTML =
-            `<div class="p-6 text-center text-muted font-sans text-sm">
+        if (res.dp?.H) {
+            heatmapModule.renderDPTable(res);
+        } else {
+            const dpCon = el('dpTableContainer');
+            if (dpCon)
+                dpCon.innerHTML = `<div class="p-6 text-center text-muted font-sans text-sm">
             <i class="fa-solid fa-table text-2xl mb-2 block"></i>
             Sequences too large for table view (${res.dp?.n ?? '?'}×${res.dp?.m ?? '?'}).<br>
             Switch to <b>Heatmap</b> for native Canvas representation.
             </div>`;
-    }
+        }
         heatmapModule.renderHeatmap(res);
     } catch (err) {
-        console.error("Failed to load visualization:", err);
+        console.error('Failed to load visualization:', err);
     }
 
     resultsPanel.scrollIntoView({ behavior: 'smooth' });
 }
-

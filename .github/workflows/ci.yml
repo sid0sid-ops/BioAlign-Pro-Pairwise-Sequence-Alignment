@@ -1,4 +1,4 @@
-name: BioAlign-Pro Scientific Validation
+name: "BioAlign-Pro: Pairwise Sequence Alignment Engine"
 
 on:
   push:

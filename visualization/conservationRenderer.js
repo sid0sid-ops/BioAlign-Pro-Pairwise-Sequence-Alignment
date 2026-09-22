@@ -10,7 +10,8 @@ export const renderGraphicSummary = (containerId, result) => {
 
     const metrics = result.additional_metrics;
     if (!metrics || !metrics.alignedSeq1 || result.alignment_length === 0) {
-        container.innerHTML = '<div class="text-gray-500 text-sm italic text-center py-4">Insufficient alignment data for graphical summary.</div>';
+        container.innerHTML =
+            '<div class="text-gray-500 text-sm italic text-center py-4">Insufficient alignment data for graphical summary.</div>';
         return;
     }
 
@@ -21,16 +22,16 @@ export const renderGraphicSummary = (containerId, result) => {
     const qLen = align1.replace(/-/g, '').length;
     if (qLen === 0) return;
 
-    let matchPositions = [];
-    let mismatchPositions = [];
-    let gapPositions = [];
+    const matchPositions = [];
+    const mismatchPositions = [];
+    const gapPositions = [];
 
     let qCursor = 0;
     for (let i = 0; i < alignLen; i++) {
         const a = align1[i];
         const b = align2[i];
-        const isGapA = (a === '-');
-        const isGapB = (b === '-');
+        const isGapA = a === '-';
+        const isGapB = b === '-';
 
         if (!isGapA) {
             const pct = (qCursor / qLen) * 100;
@@ -59,33 +60,49 @@ export const renderGraphicSummary = (containerId, result) => {
     // <40    → yellow      (#eab308)
     let barColor = '#eab308'; // default: yellow for <40
     if (result.alignment_score >= 200) barColor = '#92400e';
-    else if (result.alignment_score >= 80) barColor = '#7c3aed';  // purple
-    else if (result.alignment_score >= 50) barColor = '#16a34a';  // green
-    else if (result.alignment_score >= 40) barColor = '#f97316';  // orange
+    else if (result.alignment_score >= 80)
+        barColor = '#7c3aed'; // purple
+    else if (result.alignment_score >= 50)
+        barColor = '#16a34a'; // green
+    else if (result.alignment_score >= 40) barColor = '#f97316'; // orange
 
     const numTicks = 6;
     let ticksHTML = '';
     for (let t = 0; t <= numTicks; t++) {
         const pct = (t / numTicks) * 100;
         const label = t === 0 ? 1 : Math.floor((t / numTicks) * qLen);
-        const anchorStyle = t === 0 ? 'left:0; transform:none;' : t === numTicks ? 'right:0; left:auto; transform:none;' : `left:${pct}%; transform:translateX(-50%);`;
+        const anchorStyle =
+            t === 0
+                ? 'left:0; transform:none;'
+                : t === numTicks
+                  ? 'right:0; left:auto; transform:none;'
+                  : `left:${pct}%; transform:translateX(-50%);`;
         ticksHTML += `
             <div class="absolute top-0 h-[5px] w-px bg-gray-500 dark:bg-gray-400" style="left:${pct}%"></div>
             <div class="absolute top-[6px] text-[9px] text-gray-600 dark:text-gray-400 font-mono leading-none" style="${anchorStyle}">${label}</div>
         `;
     }
 
-    const gapNotches = gapPositions.map(p =>
-        `<div class="absolute top-0 h-full" style="left:${p.pct.toFixed(4)}%;width:calc(${p.w.toFixed(4)}% + 0.5px);background:#6b7280;opacity:0.6;z-index:2;"></div>`
-    ).join('');
+    const gapNotches = gapPositions
+        .map(
+            (p) =>
+                `<div class="absolute top-0 h-full" style="left:${p.pct.toFixed(4)}%;width:calc(${p.w.toFixed(4)}% + 0.5px);background:#6b7280;opacity:0.6;z-index:2;"></div>`
+        )
+        .join('');
 
-    const mismatchNotches = mismatchPositions.map(p =>
-        `<div class="absolute top-0 h-full" style="left:${p.pct.toFixed(4)}%;width:calc(${p.w.toFixed(4)}% + 0.5px);background:#ef4444;opacity:0.9;z-index:3;"></div>`
-    ).join('');
+    const mismatchNotches = mismatchPositions
+        .map(
+            (p) =>
+                `<div class="absolute top-0 h-full" style="left:${p.pct.toFixed(4)}%;width:calc(${p.w.toFixed(4)}% + 0.5px);background:#ef4444;opacity:0.9;z-index:3;"></div>`
+        )
+        .join('');
 
-    const matchNotches = matchPositions.map(p =>
-        `<div class="absolute top-0 h-full" style="left:${p.pct.toFixed(4)}%;width:calc(${p.w.toFixed(4)}% + 0.5px);background:${barColor};opacity:1;z-index:1;"></div>`
-    ).join('');
+    const matchNotches = matchPositions
+        .map(
+            (p) =>
+                `<div class="absolute top-0 h-full" style="left:${p.pct.toFixed(4)}%;width:calc(${p.w.toFixed(4)}% + 0.5px);background:${barColor};opacity:1;z-index:1;"></div>`
+        )
+        .join('');
 
     container.innerHTML = `
         <div class="w-full max-w-3xl mx-auto flex flex-col items-center gap-1 px-2 py-2">

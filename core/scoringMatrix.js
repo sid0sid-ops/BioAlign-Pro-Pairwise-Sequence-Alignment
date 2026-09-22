@@ -8,16 +8,24 @@ import { parsedMatrices } from './scoringMatricesData.js';
 
 const AMBIG_PROTEIN = { B: ['N', 'D'], Z: ['Q', 'E'], U: ['C'] };
 const AMBIG_DNA = {
-    R: ['A', 'G'], Y: ['C', 'T'], S: ['G', 'C'], W: ['A', 'T'], K: ['G', 'T'], M: ['A', 'C'],
-    B: ['C', 'G', 'T'], D: ['A', 'G', 'T'], H: ['A', 'C', 'T'], V: ['A', 'C', 'G'],
+    R: ['A', 'G'],
+    Y: ['C', 'T'],
+    S: ['G', 'C'],
+    W: ['A', 'T'],
+    K: ['G', 'T'],
+    M: ['A', 'C'],
+    B: ['C', 'G', 'T'],
+    D: ['A', 'G', 'T'],
+    H: ['A', 'C', 'T'],
+    V: ['A', 'C', 'G'],
     N: ['A', 'C', 'G', 'T']
 };
 
 function _resolveAmbig(code, isDna) {
-    return isDna ? (AMBIG_DNA[code] || null) : (AMBIG_PROTEIN[code] || null);
+    return isDna ? AMBIG_DNA[code] || null : AMBIG_PROTEIN[code] || null;
 }
 
-let _matrixValidationCache = new Set();
+const _matrixValidationCache = new Set();
 
 function validateMatrix(matrixName, matrixData) {
     if (_matrixValidationCache.has(matrixName)) return;
@@ -38,7 +46,9 @@ function validateMatrix(matrixName, matrixData) {
     }
 
     if (!isSymmetric) {
-        console.warn(`[BioAlign-Pro] Warning: matrix ${matrixName} contains asymmetrical penalties which may cause directional variance.`);
+        console.warn(
+            `[BioAlign-Pro] Warning: matrix ${matrixName} contains asymmetrical penalties which may cause directional variance.`
+        );
     }
     _matrixValidationCache.add(matrixName);
 }
@@ -50,8 +60,8 @@ export const getMatrixScore = (a, b, matrixName, mSc, mmSc) => {
 
     if (a === 'X' || b === 'X') return 0;
 
-    if (matrixName === 'BLASTN' || (mSc !== undefined && mmSc !== undefined)) {
-        mSc = mSc !== undefined ? mSc : 2;
+    if (matrixName === 'CUSTOM') {
+        mSc = mSc !== undefined ? mSc : 1;
         mmSc = mmSc !== undefined ? mmSc : -3;
         if (a === 'N' || b === 'N') return 0;
         const isDna = true;
@@ -59,10 +69,10 @@ export const getMatrixScore = (a, b, matrixName, mSc, mmSc) => {
         const rb = _resolveAmbig(b, isDna);
         if (!ra && !rb) return a === b ? mSc : mmSc;
 
-        const ac = ra || [a], bc = rb || [b];
+        const ac = ra || [a],
+            bc = rb || [b];
         let total = 0;
-        for (const x of ac) for (const y of bc)
-            total += (x === y ? mSc : mmSc);
+        for (const x of ac) for (const y of bc) total += x === y ? mSc : mmSc;
         return Math.round(total / (ac.length * bc.length));
     }
 
@@ -76,20 +86,22 @@ export const getMatrixScore = (a, b, matrixName, mSc, mmSc) => {
     validateMatrix(matrixName, m);
     if (!m) return 0;
 
-    const isDna = (matrixName === 'BLASTN' || matrixName === 'DNAFULL');
+    const isDna = matrixName === 'BLASTN' || matrixName === 'DNAFULL';
     const ra = _resolveAmbig(a, isDna);
     const rb = _resolveAmbig(b, isDna);
 
     if (!ra && !rb) {
-        return (m[a] && m[a][b] !== undefined) ? m[a][b] : 0;
+        return m[a] && m[a][b] !== undefined ? m[a][b] : 0;
     }
 
-    const ac = ra || [a], bc = rb || [b];
-    let total = 0, count = 0;
-    for (const x of ac) for (const y of bc) {
-        total += (m[x] && m[x][y] !== undefined) ? m[x][y] : 0;
-        count++;
-    }
+    const ac = ra || [a],
+        bc = rb || [b];
+    let total = 0,
+        count = 0;
+    for (const x of ac)
+        for (const y of bc) {
+            total += m[x] && m[x][y] !== undefined ? m[x][y] : 0;
+            count++;
+        }
     return count > 0 ? Math.round(total / count) : 0;
 };
-

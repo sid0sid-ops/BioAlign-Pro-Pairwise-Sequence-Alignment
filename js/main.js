@@ -44,43 +44,51 @@
  *
  * ================================================================
  */
+
+import { runAlignment } from '../core/alignmentEngine.js';
+import { downloadAlignmentCSV, downloadAlignmentJSON, downloadAlignmentTXT } from '../export/embossFormatter.js';
+import { downloadAlignmentFASTA } from '../export/fastaExport.js';
 import {
-    startAlignmentMode,
-    returnToLanding,
-    setSequenceType,
-    toggleAdvancedOptions,
-    toggleTheme,
     clearSeq,
-    loadExample,
-    switchTab,
+    fetchNCBI,
+    getActiveTab,
+    getCurrentAlgo,
+    getRawSequence,
+    getSeqType,
     handleFileDrop,
     handleFileUpload,
-    fetchNCBI,
-    getRawSequence,
-    getActiveTab,
-    validateSequence,
+    loadExample,
+    returnToLanding,
+    setSequenceType,
     showToast,
-    getCurrentAlgo,
-    getSeqType
+    startAlignmentMode,
+    switchTab,
+    toggleAdvancedOptions,
+    toggleTheme,
+    validateSequence
 } from '../ui/inputController.js';
-
-import { initUIController } from '../ui/uiController.js';
-import { getState } from '../ui/state.js';
-
 import { updateResultUI } from '../ui/resultsController.js';
+import { getState } from '../ui/state.js';
+import { initUIController } from '../ui/uiController.js';
 import { setupMatrixUI } from '../visualization/heatmapRenderer.js';
-import { downloadAlignmentTXT, downloadAlignmentCSV, downloadAlignmentJSON } from '../export/embossFormatter.js';
-import { downloadAlignmentFASTA } from '../export/fastaExport.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // uiController.js owns all event wiring — no window.* shims needed for UI interactions.
     // Only export download helpers that are triggered from result-panel buttons in HTML.
     initUIController();
 
-    window._downloadAlignmentTXT = () => { if (window.lastAlignmentResult) downloadAlignmentTXT(window.lastAlignmentResult); };
-    window._downloadAlignmentCSV = () => { if (window.lastAlignmentResult) downloadAlignmentCSV(window.lastAlignmentResult); };
-    window._downloadAlignmentJSON = () => { if (window.lastAlignmentResult) downloadAlignmentJSON(window.lastAlignmentResult); };
-    window._downloadAlignmentFASTA = () => { if (window.lastAlignmentResult) downloadAlignmentFASTA(window.lastAlignmentResult); };
+    window._downloadAlignmentTXT = () => {
+        if (window.lastAlignmentResult) downloadAlignmentTXT(window.lastAlignmentResult);
+    };
+    window._downloadAlignmentCSV = () => {
+        if (window.lastAlignmentResult) downloadAlignmentCSV(window.lastAlignmentResult);
+    };
+    window._downloadAlignmentJSON = () => {
+        if (window.lastAlignmentResult) downloadAlignmentJSON(window.lastAlignmentResult);
+    };
+    window._downloadAlignmentFASTA = () => {
+        if (window.lastAlignmentResult) downloadAlignmentFASTA(window.lastAlignmentResult);
+    };
     window._downloadPlot = () => {
         const canvas = document.getElementById('pureCanvasHeatmap');
         if (canvas) {
@@ -93,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 a.click();
                 showToast('Heatmap snapshot downloaded successfully.', 'success');
             } catch (err) {
-                console.error("Canvas export failed:", err);
+                console.error('Canvas export failed:', err);
                 showToast('Failed to export Heatmap. Cross-origin taint?', 'error');
             }
         } else {
@@ -132,18 +140,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const t2 = getActiveTab(2);
 
             // Auto-fetch if user forgot to click fetch
-            if (t1 === 'ncbi' && !(document.getElementById('seq1-ext')?.value)) {
+            if (t1 === 'ncbi' && !document.getElementById('seq1-ext')?.value) {
                 const sv = document.getElementById('ncbi-search-1')?.value?.trim();
                 if (sv && sv.length >= 4) await fetchNCBI(1);
             }
-            if (t2 === 'ncbi' && !(document.getElementById('seq2-ext')?.value)) {
+            if (t2 === 'ncbi' && !document.getElementById('seq2-ext')?.value) {
                 const sv = document.getElementById('ncbi-search-2')?.value?.trim();
                 if (sv && sv.length >= 4) await fetchNCBI(2);
             }
 
             const s1 = getRawSequence(1);
             const s2 = getRawSequence(2);
-            if (!validateSequence(s1, 1) || !validateSequence(s2, 2)) return;
+            if (!validateSequence(s1, 1) || !validateSequence(s2, 2)) {
+                const rs = document.getElementById('resultsSection');
+                if (rs) {
+                    rs.classList.add('hidden');
+                    rs.classList.remove('flex');
+                    rs.style.display = 'none';
+                }
+                return;
+            }
 
             let n1 = 'Sequence 1';
             let n2 = 'Sequence 2';
@@ -172,18 +188,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const gapMath = appState.gapMode;
             const gapOp = appState.parameters.gapOpen;
             const gapEx = appState.parameters.gapExtend;
-            const matrixName = appState.parameters.matrix;
+            let matrixName = appState.parameters.matrix;
             const dbSize = appState.parameters.dbSize;
             const expectThresh = appState.parameters.expectThreshold;
+            const wordSize = appState.parameters.wordSize;
+            const thresholdT = appState.parameters.thresholdT;
+            const xDropoff = appState.parameters.xDropoff;
 
             let customMatch, customMismatch;
             if (appState.sequenceType === 'dna' && appState.scoringMode === 'CUSTOM') {
-                customMatch = appState.parameters.matchScore;
-                customMismatch = appState.parameters.mismatchPenalty;
+                matrixName = 'CUSTOM';
+                customMatch = Number(appState.parameters.matchScore ?? 1);
+                customMismatch = Number(appState.parameters.mismatchPenalty ?? -3);
             }
 
             if (s1.length > MAX_SEQ_LENGTH || s2.length > MAX_SEQ_LENGTH) {
-                showToast(`Sequence too long (max ${MAX_SEQ_LENGTH} residues)`, "error");
+                showToast(`Sequence too long (max ${MAX_SEQ_LENGTH} residues)`, 'error');
                 return;
             }
 
@@ -199,13 +219,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn(`[BioAlign] currentAlgo was falsy — resolved from hash: "${resolvedAlgo}"`);
             }
 
-            const cacheKey = `${s1}|${s2}|${matrixName}|${gapOp}|${gapEx}|${resolvedAlgo}|${gapMath}|${getSeqType()}|${expectThresh}`;
+            const cacheKey = `${s1}|${s2}|${matrixName}|${gapOp}|${gapEx}|${resolvedAlgo}|${gapMath}|${getSeqType()}|${expectThresh}|${wordSize}|${thresholdT}|${xDropoff}|${customMatch}|${customMismatch}`;
 
             if (_alignmentCache.has(cacheKey)) {
                 window.lastAlignmentResult = _alignmentCache.get(cacheKey);
                 document.getElementById('recomputeMsg')?.classList.add('hidden');
                 updateResultUI(window.lastAlignmentResult);
-                showToast("Result from cache (instant)", "success");
+                showToast('Result from cache (instant)', 'success');
                 return;
             }
 
@@ -218,44 +238,22 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...`;
 
             try {
-                // Offload Dynamic Programming to Web Worker to prevent UI Freeze
-                const worker = new Worker(new URL('../core/alignmentWorker.js', import.meta.url), { type: 'module' });
-                const jobId = Date.now();
-
-                const result = await new Promise((resolve, reject) => {
-                    worker.onmessage = (e) => {
-                        if (e.data.id !== jobId) return;
-
-                        if (e.data.type === 'progress') {
-                            const loaderObj = document.getElementById('loadingOverlay');
-                            if (loaderObj) {
-                                // Currently loader holds a spinner, updating text could be placed here
-                                // console.log(`Progress: ${e.data.stage}... ${e.data.percent}%`);
-                            }
-                            return;
-                        }
-
-                        if (e.data.success) {
-                            resolve(e.data.result);
-                        } else {
-                            reject(new Error(e.data.error || 'Worker error'));
-                        }
-                        worker.terminate();
-                    };
-
-                    worker.onerror = (err) => {
-                        reject(err);
-                        worker.terminate();
-                    };
-
-                    worker.postMessage({
-                        id: jobId,
-                        seq1: s1, seq2: s2, seqType: getSeqType(),
-                        gapMath, gapOp, gapEx, matrixName,
-                        customMatch, customMismatch,
-                        algoType: resolvedAlgo,
-                        databaseSize: dbSize, expectThresh
-                    });
+                const result = await runAlignment({
+                    seq1: s1,
+                    seq2: s2,
+                    seqType: getSeqType(),
+                    gapMath,
+                    gapOp,
+                    gapEx,
+                    matrixName,
+                    customMatch,
+                    customMismatch,
+                    algoType: resolvedAlgo,
+                    databaseSize: dbSize,
+                    expectThresh,
+                    wordSize,
+                    thresholdT,
+                    xDropoff
                 });
 
                 window.lastAlignmentResult = result;
@@ -265,19 +263,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('recomputeMsg')?.classList.add('hidden');
                 updateResultUI(result);
 
-                showToast(`${resolvedAlgo.toUpperCase()} alignment complete`, "success");
+                showToast(`${resolvedAlgo.toUpperCase()} alignment complete`, 'success');
             } catch (err) {
                 console.error(err);
 
                 // 🔥 Only show error if alignment never succeeded
                 if (!window.lastAlignmentResult) {
-                    const errorTxt = (err.message && err.message.trim() !== '')
-                        ? err.message
-                        : (err.toString() !== '[object Object]'
-                            ? err.toString()
-                            : 'Unknown computation error.');
+                    const errorTxt =
+                        err.message && err.message.trim() !== ''
+                            ? err.message
+                            : err.toString() !== '[object Object]'
+                              ? err.toString()
+                              : 'Unknown computation error.';
 
-                    showToast("Alignment failed: " + errorTxt, "error");
+                    showToast('Alignment failed: ' + errorTxt, 'error');
 
                     const rs = document.getElementById('resultsSection');
                     if (rs) {
@@ -285,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         rs.classList.remove('flex');
                     }
                 } else {
-                    console.warn("UI error after successful alignment");
+                    console.warn('UI error after successful alignment');
                 }
             } finally {
                 if (loader) loader.classList.add('hidden');

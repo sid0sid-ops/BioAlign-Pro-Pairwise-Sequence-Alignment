@@ -1,18 +1,20 @@
-import { getDerivedUIState } from './rulesEngine.js';
 import { getDefaults } from './defaults.js';
+import { getDerivedUIState } from './rulesEngine.js';
 
-export let state = {
-    sequenceType: "protein",
-    alignmentType: "global",
-    scoringMode: "MATRIX",
-    gapMode: "affine",
+export const state = {
+    sequenceType: 'protein',
+    alignmentType: 'global',
+    scoringMode: 'MATRIX',
+    gapMode: 'affine',
     parameters: {
         matchScore: 1,
         mismatchPenalty: -3,
-        matrix: "BLOSUM62",
+        matrix: 'BLOSUM62',
         gapOpen: 10,
         gapExtend: 0.5,
         wordSize: 3,
+        thresholdT: 11,
+        xDropoff: 20,
         expectThreshold: 0.05,
         dbSize: null,
         penalizeEndGaps: false,
@@ -38,13 +40,14 @@ export function getState() {
 export function updateState(action, payload) {
     // 1. Process explicit user change
     switch (action) {
-        case 'INIT': break;
+        case 'INIT':
+            break;
         case 'SET_SEQUENCE_TYPE':
             state.ui.userModifiedGap = false;
             state.sequenceType = payload;
             if (state.sequenceType === 'dna') {
-                state.scoringMode = 'CUSTOM';
-                state.parameters.matrix = 'DNAFULL';
+                state.scoringMode = state.alignmentType === 'blast' ? 'CUSTOM' : 'CUSTOM';
+                state.parameters.matrix = state.alignmentType === 'blast' ? 'BLASTN' : 'DNAFULL';
             } else if (state.sequenceType === 'protein') {
                 state.scoringMode = 'MATRIX';
                 state.parameters.matrix = 'BLOSUM62';
@@ -58,10 +61,15 @@ export function updateState(action, payload) {
         case 'SET_SCORING_MODE':
             if (state.sequenceType === 'dna') {
                 state.scoringMode = payload;
-                if (payload === 'MATRIX') state.parameters.matrix = 'DNAFULL';
+                if (payload === 'MATRIX') {
+                    state.parameters.matrix = state.alignmentType === 'blast' ? 'BLASTN' : 'DNAFULL';
+                } else if (payload === 'CUSTOM') {
+                    state.parameters.matrix = 'CUSTOM';
+                }
             }
             break;
         case 'SET_GAP_MODE':
+            state.ui.userModifiedGap = false;
             state.gapMode = payload;
             break;
         case 'SET_PARAMETER':
@@ -81,40 +89,27 @@ export function updateState(action, payload) {
             break;
     }
 
-    // 2. Resolve Constraints (Hard Math Overrides)
-    if (state.alignmentType === 'local') {
-        state.gapMode = 'affine';
-        if (state.parameters.matrix === 'BLASTN') state.parameters.matrix = 'DNAFULL';
-    } else if (state.alignmentType === 'blast') {
-        state.gapMode = 'linear';
-    }
-
-    if (state.parameters.matrix === 'BLASTN' && state.alignmentType !== 'local') {
-        state.gapMode = 'linear';
-    }
-
+    // 2. Resolve Constraints (Preserve user explicit choices)
     if (state.sequenceType === 'protein') {
         state.scoringMode = 'MATRIX';
+        if (state.parameters.matrix === 'DNAFULL' || state.parameters.matrix === 'BLASTN') {
+            state.parameters.matrix = 'BLOSUM62';
+        }
     } else if (state.sequenceType === 'dna') {
-        if (state.gapMode === 'affine') {
-            state.scoringMode = 'MATRIX';
-            if (!state.parameters.matrix || state.parameters.matrix === 'BLASTN') {
-                state.parameters.matrix = 'DNAFULL';
-            }
-        } else if (state.gapMode === 'linear') {
-            state.scoringMode = 'CUSTOM';
+        if (!['CUSTOM', 'DNAFULL', 'BLASTN'].includes(state.parameters.matrix)) {
+            state.parameters.matrix = state.scoringMode === 'CUSTOM' ? 'CUSTOM' : 'DNAFULL';
         }
     }
 
-    // Invalid matrix cleanup
-    if (state.sequenceType === 'dna' && typeof state.parameters.matrix === 'string' && !state.parameters.matrix.includes('BLASTN') && !state.parameters.matrix.includes('DNAFULL')) {
-        state.parameters.matrix = 'DNAFULL';
-    } else if (state.sequenceType === 'protein' && (state.parameters.matrix === 'DNAFULL' || state.parameters.matrix === 'BLASTN')) {
-        state.parameters.matrix = 'BLOSUM62';
-    }
-
     // 3. Apply Defaults for structural changes
-    const structActions = ['INIT', 'SET_SEQUENCE_TYPE', 'SET_ALIGNMENT_TYPE', 'SET_SCORING_MODE', 'RESET_GAP_OVERRIDES', 'SET_GAP_MODE'];
+    const structActions = [
+        'INIT',
+        'SET_SEQUENCE_TYPE',
+        'SET_ALIGNMENT_TYPE',
+        'SET_SCORING_MODE',
+        'RESET_GAP_OVERRIDES',
+        'SET_GAP_MODE'
+    ];
     if (structActions.includes(action) || (action === 'SET_PARAMETER' && payload?.key === 'matrix')) {
         const d = getDefaults(state);
         Object.assign(state.parameters, d);
@@ -122,5 +117,5 @@ export function updateState(action, payload) {
 
     // 4. Determine UI output and Emit
     const derivedUI = getDerivedUIState(state);
-    listeners.forEach(fn => fn(state, derivedUI));
+    listeners.forEach((fn) => fn(state, derivedUI));
 }
